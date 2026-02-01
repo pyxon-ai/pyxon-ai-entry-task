@@ -1,0 +1,59 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyd
+*.so
+*.egg-info/
+dist/
+build/
+.eggs/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+
+# Virtual envs
+venv/
+.venv/
+env/
+ENV/
+
+# Streamlit
+.streamlit/secrets.toml
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Local databases / storage
+*.db
+*.sqlite
+*.sqlite3
+db_storage/
+db/
+data/
+storage/
+tmp/
+temp/
+*.log
+
+# Qdrant local storage
+qdrant/
+.qdrant/
+**/qdrant/
+
+# HuggingFace / models cache (important for Streamlit Cloud)
+.cache/
+huggingface/
+hf_cache/
+transformers_cache/
+**/.cache/
+
+# Torch / misc
+*.pt
+*.pth
+
+# Node
+node_modules/
