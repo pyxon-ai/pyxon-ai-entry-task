@@ -1,6 +1,6 @@
 import json
+import os
 import sqlite3
-import threading
 from typing import Any, Iterable
 
 from qdrant_client import QdrantClient
@@ -13,19 +13,15 @@ class SqlStore:
         self._init()
 
     def _conn(self):
-        con = sqlite3.connect(self.path, check_same_thread=False, timeout=30)
-        try:
-            con.execute("PRAGMA journal_mode=WAL")
-            con.execute("PRAGMA synchronous=NORMAL")
-            con.execute("PRAGMA temp_store=MEMORY")
-        except Exception:
-            pass
+        con = sqlite3.connect(self.path, check_same_thread=False)
+        con.execute("PRAGMA journal_mode=WAL")
+        con.execute("PRAGMA synchronous=NORMAL")
         return con
 
     def _init(self):
+        os.makedirs(os.path.dirname(self.path) or ".", exist_ok=True)
         con = self._conn()
         cur = con.cursor()
-
         cur.execute("""
         CREATE TABLE IF NOT EXISTS documents(
             doc_id TEXT PRIMARY KEY,
@@ -38,7 +34,6 @@ class SqlStore:
             n_chunks INTEGER NOT NULL
         )
         """)
-
         cur.execute("""
         CREATE TABLE IF NOT EXISTS chunks(
             chunk_id TEXT PRIMARY KEY,
@@ -64,12 +59,10 @@ class SqlStore:
             doc_id TEXT NOT NULL,
             query TEXT NOT NULL,
             gold_json TEXT NOT NULL,
-            notes TEXT NOT NULL,
-            k_suggest INTEGER DEFAULT 5
+            notes TEXT NOT NULL
         )
         """)
         cur.execute("CREATE INDEX IF NOT EXISTS idx_bench_doc ON benchmark_cases(doc_id)")
-        cur.execute("CREATE INDEX IF NOT EXISTS idx_bench_created ON benchmark_cases(created_at)")
 
         cur.execute("""
         CREATE TABLE IF NOT EXISTS benchmark_runs(
@@ -79,8 +72,6 @@ class SqlStore:
             metrics_json TEXT NOT NULL
         )
         """)
-        cur.execute("CREATE INDEX IF NOT EXISTS idx_runs_created ON benchmark_runs(created_at)")
-
         con.commit()
         con.close()
 
@@ -100,7 +91,7 @@ class SqlStore:
         """, (
             doc["doc_id"], doc["filename"], doc["file_type"], doc["strategy"],
             json.dumps(doc["metrics"], ensure_ascii=False),
-            int(doc["n_pages"]), int(doc["n_chunks"])
+            doc["n_pages"], doc["n_chunks"]
         ))
         con.commit()
         con.close()
@@ -123,19 +114,19 @@ class SqlStore:
             text_kw=excluded.text_kw,
             lang_json=excluded.lang_json
         """, [(
-            c["chunk_id"], c["doc_id"], int(c["chunk_index"]), int(c["page_start"]), int(c["page_end"]), c["section_path"],
-            int(c["char_start"]), int(c["char_end"]), c["text_raw"], c["text_kw"], json.dumps(c["lang"], ensure_ascii=False)
+            c["chunk_id"], c["doc_id"], c["chunk_index"], c["page_start"], c["page_end"], c["section_path"],
+            c["char_start"], c["char_end"], c["text_raw"], c["text_kw"], json.dumps(c["lang"], ensure_ascii=False)
         ) for c in chunks])
         con.commit()
         con.close()
 
-    def list_documents(self, limit: int = 200) -> list[dict[str, Any]]:
+    def list_documents(self) -> list[dict[str, Any]]:
         con = self._conn()
         cur = con.cursor()
         rows = cur.execute("""
         SELECT doc_id, filename, file_type, created_at, strategy, metrics_json, n_pages, n_chunks
-        FROM documents ORDER BY created_at DESC LIMIT ?
-        """, (int(limit),)).fetchall()
+        FROM documents ORDER BY created_at DESC
+        """).fetchall()
         con.close()
         out = []
         for r in rows:
@@ -145,13 +136,13 @@ class SqlStore:
             })
         return out
 
-    def list_chunks_by_doc(self, doc_id: str, limit: int = 1000) -> list[dict[str, Any]]:
+    def get_chunks_by_doc(self, doc_id: str) -> list[dict[str, Any]]:
         con = self._conn()
         cur = con.cursor()
         rows = cur.execute("""
         SELECT chunk_id, chunk_index, page_start, page_end, section_path, char_start, char_end, text_raw, text_kw, lang_json
-        FROM chunks WHERE doc_id=? ORDER BY chunk_index ASC LIMIT ?
-        """, (doc_id, int(limit))).fetchall()
+        FROM chunks WHERE doc_id=? ORDER BY chunk_index ASC
+        """, (doc_id,)).fetchall()
         con.close()
         out = []
         for r in rows:
@@ -162,17 +153,12 @@ class SqlStore:
             })
         return out
 
-    def get_chunks_by_doc(self, doc_id: str) -> list[dict[str, Any]]:
-        return self.list_chunks_by_doc(doc_id, limit=1000000)
-
     def get_all_chunks_for_bm25(self) -> tuple[list[str], list[str]]:
         con = self._conn()
         cur = con.cursor()
         rows = cur.execute("SELECT chunk_id, text_kw FROM chunks").fetchall()
         con.close()
-        ids = [r[0] for r in rows]
-        texts = [r[1] for r in rows]
-        return ids, texts
+        return [r[0] for r in rows], [r[1] for r in rows]
 
     def get_chunk_text(self, chunk_id: str) -> str | None:
         con = self._conn()
@@ -190,46 +176,23 @@ class SqlStore:
         con.commit()
         con.close()
 
-    def upsert_benchmark_case(self, case: dict[str, Any]):
+    def add_benchmark_case(self, case_id: str, doc_id: str, query: str, gold: list[str], notes: str):
         con = self._conn()
         cur = con.cursor()
         cur.execute("""
-        INSERT INTO benchmark_cases(case_id, doc_id, query, gold_json, notes, k_suggest)
-        VALUES(?,?,?,?,?,?)
-        ON CONFLICT(case_id) DO UPDATE SET
-            doc_id=excluded.doc_id,
-            query=excluded.query,
-            gold_json=excluded.gold_json,
-            notes=excluded.notes,
-            k_suggest=excluded.k_suggest
-        """, (
-            case["case_id"],
-            case["doc_id"],
-            case["query"],
-            json.dumps(case.get("gold") or [], ensure_ascii=False),
-            case.get("notes") or "",
-            int(case.get("k_suggest") or 5),
-        ))
+        INSERT INTO benchmark_cases(case_id, doc_id, query, gold_json, notes)
+        VALUES(?,?,?,?,?)
+        """, (case_id, doc_id, query, json.dumps(gold, ensure_ascii=False), notes))
         con.commit()
         con.close()
 
-    def add_benchmark_case(self, case_id: str, doc_id: str, query: str, gold: list[str], notes: str):
-        self.upsert_benchmark_case({
-            "case_id": case_id,
-            "doc_id": doc_id,
-            "query": query,
-            "gold": gold,
-            "notes": notes,
-            "k_suggest": 5,
-        })
-
-    def list_benchmark_cases(self, limit: int = 500) -> list[dict[str, Any]]:
+    def list_benchmark_cases(self) -> list[dict[str, Any]]:
         con = self._conn()
         cur = con.cursor()
         rows = cur.execute("""
-        SELECT case_id, created_at, doc_id, query, gold_json, notes, k_suggest
-        FROM benchmark_cases ORDER BY created_at DESC LIMIT ?
-        """, (int(limit),)).fetchall()
+        SELECT case_id, created_at, doc_id, query, gold_json, notes
+        FROM benchmark_cases ORDER BY created_at DESC
+        """).fetchall()
         con.close()
         out = []
         for r in rows:
@@ -239,17 +202,9 @@ class SqlStore:
                 "doc_id": r[2],
                 "query": r[3],
                 "gold": json.loads(r[4]),
-                "notes": r[5],
-                "k_suggest": r[6],
+                "notes": r[5]
             })
         return out
-
-    def clear_benchmark_cases(self):
-        con = self._conn()
-        cur = con.cursor()
-        cur.execute("DELETE FROM benchmark_cases")
-        con.commit()
-        con.close()
 
     def delete_benchmark_case(self, case_id: str):
         con = self._conn()
@@ -264,65 +219,37 @@ class SqlStore:
         cur.execute("""
         INSERT INTO benchmark_runs(run_id, config_json, metrics_json)
         VALUES(?,?,?)
-        """, (
-            run_id,
-            json.dumps(config, ensure_ascii=False),
-            json.dumps(metrics, ensure_ascii=False),
-        ))
+        """, (run_id, json.dumps(config, ensure_ascii=False), json.dumps(metrics, ensure_ascii=False)))
         con.commit()
         con.close()
-
-    def list_benchmark_runs(self, limit: int = 50) -> list[dict[str, Any]]:
-        con = self._conn()
-        cur = con.cursor()
-        rows = cur.execute("""
-        SELECT run_id, created_at, config_json, metrics_json
-        FROM benchmark_runs ORDER BY created_at DESC LIMIT ?
-        """, (int(limit),)).fetchall()
-        con.close()
-        out = []
-        for r in rows:
-            out.append({
-                "run_id": r[0],
-                "created_at": r[1],
-                "config": json.loads(r[2]),
-                "metrics": json.loads(r[3]),
-            })
-        return out
-
-
-_QDRANT_LOCK = threading.Lock()
-_QDRANT_CLIENTS: dict[str, QdrantClient] = {}
-
-
-def _get_qdrant_client(path: str | None) -> QdrantClient:
-    key = path or ":memory:"
-    with _QDRANT_LOCK:
-        cli = _QDRANT_CLIENTS.get(key)
-        if cli is not None:
-            return cli
-        cli = QdrantClient(path=path) if path else QdrantClient(":memory:")
-        _QDRANT_CLIENTS[key] = cli
-        return cli
 
 
 class VectorStore:
     def __init__(self, path: str | None):
-        self.client = _get_qdrant_client(path)
+        if path:
+            os.makedirs(path, exist_ok=True)
+            self.client = QdrantClient(path=path)
+        else:
+            self.client = QdrantClient(":memory:")
         self.collection = "chunks"
-        self._dim = None
+        self._dim: int | None = None
 
     def ensure(self, dim: int):
-        self._dim = int(dim)
+        self._dim = dim
         if self.client.collection_exists(self.collection):
             info = self.client.get_collection(self.collection)
-            cur_dim = info.config.params.vectors.size
-            if int(cur_dim) == int(dim):
+            cur_dim = None
+            try:
+                cur_dim = info.config.params.vectors.size
+            except Exception:
+                cur_dim = None
+            if cur_dim == dim:
                 return
             self.client.delete_collection(self.collection)
+
         self.client.create_collection(
             collection_name=self.collection,
-            vectors_config=qm.VectorParams(size=int(dim), distance=qm.Distance.COSINE)
+            vectors_config=qm.VectorParams(size=dim, distance=qm.Distance.COSINE)
         )
 
     def _ensure_if_missing(self):
@@ -333,22 +260,36 @@ class VectorStore:
         self.ensure(self._dim)
 
     def upsert(self, ids: list[str], vectors: list[list[float]], payloads: list[dict]):
+        if vectors:
+            vectors = [[float(x) for x in v] for v in vectors]
         if self._dim is None and vectors:
             self.ensure(len(vectors[0]))
         else:
             self._ensure_if_missing()
+
         self.client.upsert(
             collection_name=self.collection,
             points=qm.Batch(ids=ids, vectors=vectors, payloads=payloads)
         )
 
     def search(self, vector: list[float], limit: int = 10):
+        vector = [float(x) for x in vector]
         if not self.client.collection_exists(self.collection):
             self.ensure(len(vector))
+
+        if hasattr(self.client, "query_points"):
+            resp = self.client.query_points(
+                collection_name=self.collection,
+                query=vector,
+                limit=limit,
+                with_payload=True
+            )
+            return resp.points
+
         return self.client.search(
             collection_name=self.collection,
             query_vector=vector,
-            limit=int(limit),
+            limit=limit,
             with_payload=True
         )
 
