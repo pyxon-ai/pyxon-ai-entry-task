@@ -2,7 +2,7 @@ from fastapi import FastAPI, APIRouter, Depends, UploadFile, status
 from fastapi.responses import JSONResponse
 import os
 from helpers.config import get_settings, Settings
-from controllers import DataController, ProjectController, FixedController, SemanticController
+from controllers import DataController, ProjectController, DynamicController
 import aiofiles
 from models import ResponseSignal
 import logging
@@ -57,50 +57,18 @@ async def process_endpoint(project_id: str, process_request: ProcessRequest):
     chunk_size = process_request.chunk_size
     overlap_size = process_request.overlap_size
     
-    fixed_controller = FixedController(project_id=project_id)
-    file_content = fixed_controller.get_file_content(file_id=file_id)
-    file_chunks = fixed_controller.process_file_content(
-        file_content=file_content,
-        file_id=file_id,
-        chunk_size=chunk_size,
-        overlap_size=overlap_size
-    )
-
-    if file_chunks is None or len(file_chunks) == 0:
-        return JSONResponse(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            content={"signal": ResponseSignal.PROCESSING_FAILED.value}
-        )
-
-    formatted_chunks = [
-        {
-            "id": idx,
-            "page_content": chunk.page_content
-        }
-        for idx, chunk in enumerate(file_chunks)
-    ]
-
-    return formatted_chunks
-
-
-@data_router.post("/process-semantic/{project_id}")
-async def process_semantic_endpoint(project_id: str, process_request: ProcessRequest):
-    file_id = process_request.file_id
-    chunk_size = process_request.chunk_size
-    overlap_size = process_request.overlap_size
+    dynamic_controller = DynamicController(project_id=project_id)
     
-    semantic_controller = SemanticController(
-        project_id=project_id,
-        similarity_threshold=0.5
-    )
-    
-    file_chunks = semantic_controller.semantic_chunk(
+    result = dynamic_controller.process_document(
         file_id=file_id,
         chunk_size=chunk_size,
         overlap_size=overlap_size
     )
     
-    if file_chunks is None or len(file_chunks) == 0:
+    chunks = result["chunks"]
+    strategy = result["strategy"]
+    
+    if chunks is None or len(chunks) == 0:
         return JSONResponse(
             status_code=status.HTTP_400_BAD_REQUEST,
             content={"signal": ResponseSignal.PROCESSING_FAILED.value}
@@ -111,7 +79,11 @@ async def process_semantic_endpoint(project_id: str, process_request: ProcessReq
             "id": idx,
             "page_content": chunk.page_content
         }
-        for idx, chunk in enumerate(file_chunks)
+        for idx, chunk in enumerate(chunks)
     ]
     
-    return formatted_chunks
+    return {
+        "strategy": strategy,
+        "total_chunks": len(formatted_chunks),
+        "chunks": formatted_chunks
+    }
