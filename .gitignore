@@ -57,3 +57,6 @@ transformers_cache/
 
 # Node
 node_modules/
+
+docs_test/
+~$*.docx
