@@ -6,15 +6,10 @@ import numpy as np
 
 
 class SemanticController(BaseController):
-    """
-    Semantic chunking controller that intelligently merges similar consecutive chunks
-    using Cohere embeddings API for multilingual support including Arabic.
-    """
     
-    def __init__(self, project_id: str, similarity_threshold: float = 0.5):
+    def __init__(self, similarity_threshold: float = 0.5):
         super().__init__()
-        self.project_id = project_id
-        self.fixed_controller = FixedController(project_id=project_id)
+        self.fixed_controller = FixedController()
         self.similarity_threshold = similarity_threshold
         self.cohere_client = cohere.Client(self.app_settings.COHERE_API_KEY)
     
@@ -45,12 +40,10 @@ class SemanticController(BaseController):
         )
         return merged_chunk
     
-    def semantic_chunk(self, file_id: str, chunk_size: int = 500, 
+    def semantic_chunk(self, file_content: list, chunk_size: int = 500, 
                       overlap_size: int = 25) -> List[Any]:
-        file_content = self.fixed_controller.get_file_content(file_id=file_id)
         initial_chunks = self.fixed_controller.process_file_content(
             file_content=file_content,
-            file_id=file_id,
             chunk_size=chunk_size,
             overlap_size=overlap_size
         )

@@ -1,0 +1,13 @@
+This is a sample document for testing the chunking API.
+
+The document contains multiple paragraphs that will be processed by the dynamic chunking controller.
+
+The AI will analyze this content and decide whether to use fixed-size chunking or semantic chunking based on the document structure.
+
+This paragraph discusses the benefits of intelligent document processing. It allows for better understanding of document content and more meaningful chunk boundaries.
+
+The chunking system supports multiple file formats including PDF, DOCX, and TXT files. Each format is handled by specialized loaders that extract the text content.
+
+After extraction, the content is split into manageable chunks that can be used for various downstream tasks such as search, question answering, or summarization.
+
+The overlap between chunks ensures that context is preserved across chunk boundaries, which is important for maintaining semantic continuity.
