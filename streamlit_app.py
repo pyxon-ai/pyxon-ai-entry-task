@@ -1,6 +1,7 @@
 import streamlit as st
 import sys
 import os
+import json
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
 
@@ -11,6 +12,7 @@ from controllers.DynamicController import DynamicController
 from controllers.DataController import DataController
 from services.storage_service import storage_service
 import cohere
+import google.generativeai as genai
 import tempfile
 
 st.set_page_config(
@@ -20,11 +22,63 @@ st.set_page_config(
 )
 
 settings = get_settings()
+genai.configure(api_key=settings.GEMINI_API_KEY)
+
+EVAL_QUESTIONS = [
+    {"id": 1, "source": "الرياضيات.txt", "question": "ما هو الفرق الجوهري الذي ذكره النص بين الرياضيات البحتة والرياضيات التطبيقية، وهل يوجد خط فاصل واضح بينهما؟"},
+    {"id": 2, "source": "الرياضيات.txt", "question": "عرف 'نظرية الاحتمال' حسب ما ورد في النص، وما هي القيم الرياضية التي تحدد احتمال حصول أو عدم حصول حدث معين؟"},
+    {"id": 3, "source": "قصة قصيرة.txt", "question": "لماذا كان الناس يتجنبون المرور بجانب البيت المهجور في الحارة القديمة بعد الغروب؟"},
+    {"id": 4, "source": "قصة متوسطة.txt", "question": "ما هي الجملة الأخيرة التي قالها الأب قبل أن يغادر المنزل في ليلة شتوية ثقيلة، وماذا كانت حالة ساعة الحائط منذ ذلك الحين؟"},
+    {"id": 5, "source": "كأس العالم.pdf", "question": "من هي المنتخبات الثلاثة الأكثر تتويجاً بلقب كأس العالم، وكم عدد المرات التي فاز بها كل منتخب؟"},
+    {"id": 6, "source": "كأس العالم.pdf", "question": "ما هي السنوات التي ألغيت فيها بطولة كأس العالم في القرن العشرين، وما هو السبب المباشر لهذا الإلغاء؟"},
+    {"id": 7, "source": "كأس العالم.pdf", "question": "كم عدد المنتخبات المشاركة في النظام الحالي للبطولة منذ عام 1998، وكيف يتم تقسيمهم؟"},
+    {"id": 8, "source": "عشوائي.txt", "question": "ما هو اللقب الذي لقّبه النبي محمد صلى الله عليه وسلم للصحابي أبو عبيدة عامر بن الجراح؟"},
+    {"id": 9, "source": "عشوائي.txt", "question": "من هما الرجلان اللذان رضيهما أبو بكر الصديق للمسلمين يوم سقيفة بني ساعدة؟"},
+    {"id": 10, "source": "المعادن.docx", "question": "اشرح الفرق بين 'المعدن' و'الصخر' بناءً على المفاهيم الجيولوجية الواردة في النص."},
+    {"id": 11, "source": "المعادن.docx", "question": "ماذا تسمى المواد الصلبة الطبيعية التي لا تمتلك بنية بلورية محددة مثل الأوبال، وبماذا تختلف عن النوع المعدني؟"},
+    {"id": 12, "source": "الاعراق.txt", "question": "كيف تطور استخدام مصطلح 'العرق' تاريخياً من الإشارة للمتكلمين بلغة مشتركة وصولاً للقرن التاسع عشر؟"},
+    {"id": 13, "source": "الاعراق.txt", "question": "ما هو رأي العلماء الحديث في الأساسيات البيولوجية للتصنيفات العرقية؟"},
+    {"id": 14, "source": "معاذ بن جبل.txt", "question": "كم كان عمر معاذ بن جبل عندما أسلم، وماذا كان يفعل في مكة بعد فتحها؟"},
+    {"id": 15, "source": "معاذ بن جبل.txt", "question": "أين توفي معاذ بن جبل، وفي أي عام هجري، وما هو سبب الوفاة؟"},
+]
+
+def evaluate_with_gemini(question: str, source: str, retrieved_chunks: list) -> dict:
+    model = genai.GenerativeModel('gemini-2.5-flash')
+    
+    chunks_text = "\n---\n".join([c.get('content', '')[:500] for c in retrieved_chunks[:3]])
+    
+    prompt = f"""أنت مُقيّم لجودة استرجاع المعلومات. قيّم مدى صلة النتائج المسترجعة بالسؤال.
+
+السؤال: {question}
+المصدر المتوقع: {source}
+
+النتائج المسترجعة:
+{chunks_text}
+
+قيّم النتائج وأعطِ:
+1. درجة من 1-10 (10 = ممتاز، 1 = غير ذي صلة)
+2. هل النتائج من المصدر الصحيح؟ (نعم/لا)
+3. هل يمكن الإجابة على السؤال من النتائج؟ (نعم/جزئياً/لا)
+4. تعليق موجز
+
+أجب بصيغة JSON فقط:
+{{"score": X, "correct_source": "نعم/لا", "answerable": "نعم/جزئياً/لا", "comment": "..."}}"""
+
+    try:
+        response = model.generate_content(prompt)
+        result_text = response.text.strip()
+        if result_text.startswith("```"):
+            result_text = result_text.split("```")[1]
+            if result_text.startswith("json"):
+                result_text = result_text[4:]
+        return json.loads(result_text)
+    except Exception as e:
+        return {"score": 0, "correct_source": "خطأ", "answerable": "خطأ", "comment": str(e)}
 
 st.title("🔍 AI Parser")
 st.markdown("**Intelligent Document Chunking & Semantic Search**")
 
-tab1, tab2, tab3 = st.tabs(["📤 Upload", "🔎 Semantic Search", "📊 SQL Search"])
+tab1, tab2, tab3, tab4 = st.tabs(["📤 Upload", "🔎 Semantic Search", "📊 SQL Search", "📋 Evaluation"])
 
 with tab1:
     st.header("Upload Documents")
@@ -46,9 +100,6 @@ with tab1:
                         tmp.write(file.read())
                         tmp_path = tmp.name
                     
-                    from fastapi import UploadFile
-                    from io import BytesIO
-                    
                     file.seek(0)
                     
                     class MockUploadFile:
@@ -61,7 +112,6 @@ with tab1:
                             return self._file.read()
                     
                     mock_file = MockUploadFile(file)
-                    
                     dynamic_controller = DynamicController()
                     
                     import asyncio
@@ -178,12 +228,6 @@ with tab3:
                                 with st.expander(f"📄 {doc.get('file_name', 'Unknown')} (ID: {doc['id']})"):
                                     st.markdown(f"**Strategy:** {doc.get('strategy_used', 'N/A')}")
                                     st.markdown(f"**Created:** {doc.get('created_at', 'N/A')}")
-                                    
-                                    if st.button(f"View Chunks", key=f"chunks_{doc['id']}"):
-                                        chunks = supabase_client.get_chunks_by_document(doc['id'])
-                                        st.write(f"Total chunks: {len(chunks)}")
-                                        for i, chunk in enumerate(chunks[:5]):
-                                            st.text_area(f"Chunk {i+1}", chunk.get('content', '')[:300], height=100)
                         else:
                             st.info("No documents found")
                             
@@ -219,6 +263,101 @@ with tab3:
                         
                 except Exception as e:
                     st.error(f"Error: {str(e)}")
+
+with tab4:
+    st.header("📋 Retrieval Evaluation")
+    st.markdown("**Test the system with 15 predefined questions and evaluate using Gemini AI**")
+    
+    col1, col2 = st.columns([3, 1])
+    with col1:
+        selected_questions = st.multiselect(
+            "Select questions to evaluate:",
+            options=[f"Q{q['id']}: {q['question'][:50]}..." for q in EVAL_QUESTIONS],
+            default=[]
+        )
+    with col2:
+        run_all = st.button("🚀 Run All 15", type="primary")
+    
+    if run_all:
+        selected_questions = [f"Q{q['id']}: {q['question'][:50]}..." for q in EVAL_QUESTIONS]
+    
+    if selected_questions and (st.button("▶️ Evaluate Selected") or run_all):
+        cohere_client = cohere.Client(settings.COHERE_API_KEY)
+        results_data = []
+        
+        progress = st.progress(0)
+        status = st.empty()
+        
+        for idx, q_label in enumerate(selected_questions):
+            q_id = int(q_label.split(":")[0][1:])
+            question_data = next(q for q in EVAL_QUESTIONS if q["id"] == q_id)
+            
+            status.text(f"Evaluating Q{q_id}: {question_data['question'][:40]}...")
+            
+            try:
+                embedding_response = cohere_client.embed(
+                    texts=[question_data['question']],
+                    model='embed-multilingual-v3.0',
+                    input_type='search_query',
+                    embedding_types=['float']
+                )
+                query_vector = embedding_response.embeddings.float[0]
+                
+                search_results = weaviate_client.semantic_search(
+                    query_vector=query_vector,
+                    limit=5
+                )
+                
+                evaluation = evaluate_with_gemini(
+                    question_data['question'],
+                    question_data['source'],
+                    search_results
+                )
+                
+                results_data.append({
+                    "ID": q_id,
+                    "Question": question_data['question'][:50] + "...",
+                    "Expected Source": question_data['source'],
+                    "Score": evaluation.get('score', 0),
+                    "Correct Source": evaluation.get('correct_source', 'N/A'),
+                    "Answerable": evaluation.get('answerable', 'N/A'),
+                    "Comment": evaluation.get('comment', '')[:100]
+                })
+                
+            except Exception as e:
+                results_data.append({
+                    "ID": q_id,
+                    "Question": question_data['question'][:50] + "...",
+                    "Expected Source": question_data['source'],
+                    "Score": 0,
+                    "Correct Source": "Error",
+                    "Answerable": "Error",
+                    "Comment": str(e)[:100]
+                })
+            
+            progress.progress((idx + 1) / len(selected_questions))
+        
+        status.empty()
+        
+        st.subheader("📊 Evaluation Results")
+        
+        avg_score = sum(r['Score'] for r in results_data) / len(results_data) if results_data else 0
+        correct_sources = sum(1 for r in results_data if r['Correct Source'] == 'نعم')
+        answerable = sum(1 for r in results_data if r['Answerable'] == 'نعم')
+        
+        col1, col2, col3 = st.columns(3)
+        col1.metric("Average Score", f"{avg_score:.1f}/10")
+        col2.metric("Correct Source", f"{correct_sources}/{len(results_data)}")
+        col3.metric("Answerable", f"{answerable}/{len(results_data)}")
+        
+        st.dataframe(results_data, use_container_width=True)
+        
+        st.download_button(
+            "📥 Download Results (JSON)",
+            json.dumps(results_data, ensure_ascii=False, indent=2),
+            "evaluation_results.json",
+            "application/json"
+        )
 
 with st.sidebar:
     st.header("📋 Documents")
