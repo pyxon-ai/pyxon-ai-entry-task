@@ -4,6 +4,8 @@
 - **Name:** Eyad Al-Naimi
 - **Email:** efalnaimi22@gmail.com
 - **Phone:** 962782608645
+- **LinkedIn:** https://www.linkedin.com/in/eyad-naimi-1401ba276/
+- **GitHub:** https://github.com/EyadAlN3imi
 
 ---
 
