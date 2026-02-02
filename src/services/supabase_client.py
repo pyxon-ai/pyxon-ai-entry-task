@@ -28,39 +28,20 @@ class SupabaseClient:
     def delete_document(self, document_id: int) -> None:
         self.client.table("documents").delete().eq("id", document_id).execute()
     
-    def advanced_search(
-        self,
-        content: str = None,
-        file_name: str = None,
-        strategy: str = None,
-        document_id: int = None,
-        from_date: str = None,
-        to_date: str = None,
-        limit: int = 50
-    ) -> List[Dict[str, Any]]:
-        query = self.client.table("chunks").select(
-            "*, documents(id, file_name, strategy_used, created_at)"
-        )
-        
-        if content:
-            query = query.ilike("content", f"%{content}%")
-        
-        if document_id:
-            query = query.eq("document_id", document_id)
-        
-        if file_name:
-            query = query.filter("documents.file_name", "ilike", f"%{file_name}%")
-        
-        if strategy:
-            query = query.filter("documents.strategy_used", "ilike", f"%{strategy}%")
-        
-        if from_date:
-            query = query.filter("documents.created_at", "gte", from_date)
-        
-        if to_date:
-            query = query.filter("documents.created_at", "lte", to_date)
-        
-        response = query.limit(limit).execute()
+    def search_by_document_name(self, file_name: str, limit: int = 50) -> List[Dict[str, Any]]:
+        response = self.client.table("documents").select(
+            "id, file_name, strategy_used, created_at"
+        ).ilike("file_name", f"%{file_name}%").limit(limit).execute()
+        return response.data
+    
+    def search_by_document_id(self, document_id: int) -> Dict[str, Any]:
+        response = self.client.table("documents").select(
+            "id, file_name, strategy_used, created_at"
+        ).eq("id", document_id).single().execute()
+        return response.data
+    
+    def get_chunks_by_document(self, document_id: int) -> List[Dict[str, Any]]:
+        response = self.client.table("chunks").select("*").eq("document_id", document_id).execute()
         return response.data
     
     def get_all_documents(self, limit: int = 50) -> List[Dict[str, Any]]:

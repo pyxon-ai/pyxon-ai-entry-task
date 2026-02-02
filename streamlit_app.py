@@ -159,43 +159,66 @@ with tab2:
 with tab3:
     st.header("SQL Search")
     
-    col1, col2 = st.columns(2)
+    search_type = st.radio("Search by:", ["Document Name", "Document ID"], horizontal=True)
     
-    with col1:
-        content_filter = st.text_input("Content contains", placeholder="Search text...")
+    if search_type == "Document Name":
         file_name_filter = st.text_input("File name", placeholder="e.g., report.pdf")
+        sql_limit = st.slider("Number of results", 1, 50, 20, key="sql_limit")
+        
+        if st.button("Search", key="sql_search"):
+            if file_name_filter:
+                with st.spinner("Searching..."):
+                    try:
+                        results = supabase_client.search_by_document_name(file_name_filter, sql_limit)
+                        
+                        if results:
+                            st.success(f"Found {len(results)} document(s)")
+                            
+                            for doc in results:
+                                with st.expander(f"📄 {doc.get('file_name', 'Unknown')} (ID: {doc['id']})"):
+                                    st.markdown(f"**Strategy:** {doc.get('strategy_used', 'N/A')}")
+                                    st.markdown(f"**Created:** {doc.get('created_at', 'N/A')}")
+                                    
+                                    if st.button(f"View Chunks", key=f"chunks_{doc['id']}"):
+                                        chunks = supabase_client.get_chunks_by_document(doc['id'])
+                                        st.write(f"Total chunks: {len(chunks)}")
+                                        for i, chunk in enumerate(chunks[:5]):
+                                            st.text_area(f"Chunk {i+1}", chunk.get('content', '')[:300], height=100)
+                        else:
+                            st.info("No documents found")
+                            
+                    except Exception as e:
+                        st.error(f"Error: {str(e)}")
+            else:
+                st.warning("Please enter a file name")
     
-    with col2:
-        strategy_filter = st.selectbox("Strategy", ["All", "FIXED", "SEMANTIC"])
-        doc_id_filter = st.number_input("Document ID", min_value=0, value=0)
-    
-    sql_limit = st.slider("Number of results", 1, 100, 20, key="sql_limit")
-    
-    if st.button("Search", key="sql_search"):
-        with st.spinner("Searching..."):
-            try:
-                results = supabase_client.advanced_search(
-                    content=content_filter if content_filter else None,
-                    file_name=file_name_filter if file_name_filter else None,
-                    strategy=strategy_filter if strategy_filter != "All" else None,
-                    document_id=doc_id_filter if doc_id_filter > 0 else None,
-                    limit=sql_limit
-                )
-                
-                if results:
-                    st.success(f"Found {len(results)} results")
+    else:
+        doc_id = st.number_input("Document ID", min_value=1, value=1)
+        
+        if st.button("Search", key="sql_search_id"):
+            with st.spinner("Searching..."):
+                try:
+                    doc = supabase_client.search_by_document_id(doc_id)
                     
-                    for i, result in enumerate(results):
-                        doc_info = result.get('documents', {})
-                        with st.expander(f"📄 Chunk {i+1} | Doc: {doc_info.get('file_name', 'Unknown')}"):
-                            st.markdown(f"**Content:**\n{result.get('content', '')[:500]}...")
-                            st.markdown(f"**Document ID:** {result.get('document_id')}")
-                            st.markdown(f"**Strategy:** {doc_info.get('strategy_used', 'N/A')}")
-                else:
-                    st.info("No results found")
-                    
-            except Exception as e:
-                st.error(f"Error: {str(e)}")
+                    if doc:
+                        st.success(f"Found document: {doc.get('file_name')}")
+                        st.markdown(f"**ID:** {doc['id']}")
+                        st.markdown(f"**File Name:** {doc.get('file_name', 'N/A')}")
+                        st.markdown(f"**Strategy:** {doc.get('strategy_used', 'N/A')}")
+                        st.markdown(f"**Created:** {doc.get('created_at', 'N/A')}")
+                        
+                        st.subheader("Chunks")
+                        chunks = supabase_client.get_chunks_by_document(doc_id)
+                        st.write(f"Total chunks: {len(chunks)}")
+                        
+                        for i, chunk in enumerate(chunks):
+                            with st.expander(f"Chunk {i+1}"):
+                                st.text(chunk.get('content', '')[:500])
+                    else:
+                        st.info("Document not found")
+                        
+                except Exception as e:
+                    st.error(f"Error: {str(e)}")
 
 with st.sidebar:
     st.header("📋 Documents")
