@@ -317,8 +317,8 @@ with tabs[3]:
         st.success(f"Last evaluation run: {results.get('timestamp', 'Unknown')}")
         st.info(f"Total questions evaluated: {results.get('total_questions', 0)}")
 
-else:
-    st.warning("⚠️ No evaluation results found. Run an evaluation first!")
+    else:
+        st.warning("⚠️ No evaluation results found. Run an evaluation first!")
     
     if st.button("▶️ Run First Evaluation", type="primary"):
         run_evaluation()
