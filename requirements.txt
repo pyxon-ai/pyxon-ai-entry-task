@@ -1,0 +1,22 @@
+# Document Parsing
+pypdf
+python-docx
+
+# Language & Text Analysis
+langdetect
+
+# Embeddings (Arabic supported)
+sentence-transformers
+numpy
+
+# Vector Database
+chromadb
+
+# SQL Database
+sqlite-utils
+
+# Demo / UI
+streamlit
+
+# Utilities
+tqdm
