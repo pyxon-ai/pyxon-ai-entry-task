@@ -1,0 +1,30 @@
+# Sample English Document
+
+## Introduction to Document Processing
+
+This is a sample English document for testing the Pyxon AI Document Parser system.
+
+## Features
+
+The document parser includes the following features:
+
+- Multi-format support (PDF, DOCX, TXT)
+- Intelligent chunking strategies
+- Arabic language support with diacritics
+- Semantic search capabilities
+- RAG-powered retrieval
+
+## Technical Architecture
+
+The system uses a dual storage approach:
+
+1. **PostgreSQL** for structured metadata storage
+2. **ChromaDB** for vector embeddings and semantic search
+
+### Embedding Model
+
+We use the multilingual sentence transformer model that supports over 50 languages including Arabic and English.
+
+## Conclusion
+
+This document demonstrates the system's ability to process and chunk English text effectively.

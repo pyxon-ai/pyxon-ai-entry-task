@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pyxon AI Document Parser | RAG System</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="logo">
+                <h1>Pyxon AI Document Parser</h1>
+            </div>
+            <p class="subtitle">Intelligent RAG-Powered Document Processing with Arabic Support</p>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Upload Section -->
+            <section class="upload-section card">
+                <h2>Upload Document</h2>
+                <div class="upload-area" id="uploadArea">
+                    <div class="upload-icon">📁</div>
+                    <p class="upload-text">Drag & drop your document here</p>
+                    <p class="upload-subtext">or click to browse</p>
+                    <p class="upload-formats">Supports: PDF, DOCX, DOC, TXT | Arabic & English</p>
+                    <input type="file" id="fileInput" accept=".pdf,.docx,.doc,.txt" hidden>
+                </div>
+                <div class="upload-status" id="uploadStatus"></div>
+            </section>
+
+            <!-- Document List -->
+            <section class="documents-section card">
+                <div class="section-header">
+                    <h2>Processed Documents</h2>
+                    <button class="btn-refresh" id="refreshBtn">Refresh</button>
+                </div>
+                <div class="documents-list" id="documentsList">
+                    <p class="empty-state">No documents yet. Upload one to get started!</p>
+                </div>
+            </section>
+
+            <!-- Search Section -->
+            <section class="search-section card">
+                <h2>Search Documents</h2>
+                <div class="search-box">
+                    <input type="text" id="searchInput" placeholder="Enter your query in English or Arabic..."
+                        class="search-input">
+                    <div class="search-controls">
+                        <label>
+                            Results:
+                            <select id="topK" class="select-input">
+                                <option value="3">3</option>
+                                <option value="5" selected>5</option>
+                                <option value="10">10</option>
+                            </select>
+                        </label>
+                        <button class="btn-primary" id="searchBtn">Search</button>
+                    </div>
+                </div>
+                <div class="search-results" id="searchResults"></div>
+            </section>
+        </main>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+
+</html>
