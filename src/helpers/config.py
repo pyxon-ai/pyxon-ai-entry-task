@@ -1,13 +1,23 @@
 import os
 
+_HAS_STREAMLIT = False
+_IN_STREAMLIT = False
+
 try:
     import streamlit as st
+    from streamlit.runtime.scriptrunner import get_script_run_ctx
     _HAS_STREAMLIT = True
-except ImportError:
-    _HAS_STREAMLIT = False
+    _IN_STREAMLIT = get_script_run_ctx() is not None
+except:
+    pass
 
 def _is_streamlit_cloud():
-    return _HAS_STREAMLIT and hasattr(st, 'secrets') and len(st.secrets) > 0
+    if not _HAS_STREAMLIT or not _IN_STREAMLIT:
+        return False
+    try:
+        return len(st.secrets) > 0
+    except:
+        return False
 
 class Settings:
     def __init__(self):
@@ -17,6 +27,7 @@ class Settings:
             self._load_from_env()
     
     def _load_from_streamlit(self):
+        import streamlit as st
         self.APP_NAME = st.secrets.get("APP_NAME", "AI-Parser")
         self.APP_VERSION = st.secrets.get("APP_VERSION", "0.1")
         self.GEMINI_API_KEY = st.secrets["GEMINI_API_KEY"]
