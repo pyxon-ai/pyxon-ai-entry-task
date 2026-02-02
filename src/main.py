@@ -1,6 +1,9 @@
 from fastapi import FastAPI
-from routes import base, chunk
+from routes.base import base_router
+from routes.chunk import chunk_router
+from routes.search import search_router
 
 app = FastAPI()
-app.include_router(base.base_router)
-app.include_router(chunk.chunk_router)
+app.include_router(base_router)
+app.include_router(chunk_router)
+app.include_router(search_router)
