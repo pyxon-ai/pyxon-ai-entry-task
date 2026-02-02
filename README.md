@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Pyxon AI - Junior Engineer Entry Task
 
 ## Overview
@@ -171,3 +172,56 @@ Your submission will be evaluated on:
 If you have any questions about the requirements, please include them in your PR description along with the assumptions you made to proceed with the implementation. This helps us understand your decision-making process.
 
 Good luck! 🚀
+=======
+# Pyxon AI Document Parsing Task
+
+## Summary
+This project implements a document parsing and retrieval system that supports Arabic documents with diacritics. The system handles PDF, DOCX, and TXT files, automatically selects a chunking strategy (fixed or dynamic), and stores embeddings in a vector database and metadata in SQLite. A live demo is available for testing.
+
+## Contact Information
+📧 Email: alaa.almousa.job@gmail.com
+📱 Phone: 0795183053 
+
+## Demo Link
+🔗 https://share.streamlit.io/alaa693/pyxon-ai-entry-task/main
+
+## Features Implemented
+- Document parsing (PDF, DOCX, TXT)
+- Content analysis and chunking strategy selection
+- Fixed and dynamic chunking
+- Vector database (Chroma) integration
+- SQL database (SQLite) integration
+- Arabic language support
+- Arabic diacritics support
+- Benchmark suite
+- RAG integration ready
+
+## Architecture
+The system is designed in a modular way:
+- `main.py`: Handles file reading, preprocessing, chunking, and embedding generation.
+- `document_classifier.py`: Classifies documents to select chunking strategy.
+- `dynamic_chunker.py`: Implements dynamic chunking for structured Arabic texts.
+- `store_chunks.py`: Saves chunks to Chroma vector DB and SQLite database.
+- `demo.py`: Streamlit web interface for document upload and similarity search.
+- `analyze_chunks.py`: Extracts keywords and topics from each chunk.
+
+## Technologies Used
+- Python 3.10+
+- `PyPDF2`, `python-docx` for file reading
+- `sentence-transformers` for embeddings
+- `KeyBERT` for keyword extraction
+- `SQLAlchemy` for SQLite integration
+- `ChromaDB` for vector database
+- `Streamlit` for web demo
+
+## Benchmark Results
+- Average chunk embedding time: ~0.5s per chunk
+- Total processed chunks: 3 (for sample documents)
+- Embedding size: 384
+
+## How to Run
+1. Clone the repository:  
+   ```bash
+   git clone https://github.com/alaa693/pyxon-ai-entry-task.git
+   cd pyxon-ai-entry-task
+>>>>>>> 76ffdaa (Initial Pyxon AI document parser implementation)
