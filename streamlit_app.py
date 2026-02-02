@@ -306,7 +306,6 @@ with tab4:
         with st.expander(f"Q{q['id']}: {q['source']}"):
             st.markdown(f"**السؤال:** {q['question']}")
             st.caption(f"المصدر: {q['source']}")
-        )
 
 with st.sidebar:
     st.header("📋 Documents")
