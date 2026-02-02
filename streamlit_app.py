@@ -12,7 +12,6 @@ from controllers.DynamicController import DynamicController
 from controllers.DataController import DataController
 from services.storage_service import storage_service
 import cohere
-import google.generativeai as genai
 import tempfile
 
 st.set_page_config(
@@ -22,7 +21,6 @@ st.set_page_config(
 )
 
 settings = get_settings()
-genai.configure(api_key=settings.GEMINI_API_KEY)
 
 EVAL_QUESTIONS = [
     {"id": 1, "source": "الرياضيات.txt", "question": "ما هو الفرق الجوهري الذي ذكره النص بين الرياضيات البحتة والرياضيات التطبيقية، وهل يوجد خط فاصل واضح بينهما؟"},
@@ -42,9 +40,7 @@ EVAL_QUESTIONS = [
     {"id": 15, "source": "معاذ بن جبل.txt", "question": "أين توفي معاذ بن جبل، وفي أي عام هجري، وما هو سبب الوفاة؟"},
 ]
 
-def evaluate_with_gemini(question: str, source: str, retrieved_chunks: list) -> dict:
-    model = genai.GenerativeModel('gemini-2.5-flash')
-    
+def evaluate_with_cohere(cohere_client, question: str, source: str, retrieved_chunks: list) -> dict:
     chunks_text = "\n---\n".join([c.get('content', '')[:500] for c in retrieved_chunks[:3]])
     
     prompt = f"""أنت مُقيّم لجودة استرجاع المعلومات. قيّم مدى صلة النتائج المسترجعة بالسؤال.
@@ -65,7 +61,10 @@ def evaluate_with_gemini(question: str, source: str, retrieved_chunks: list) -> 
 {{"score": X, "correct_source": "نعم/لا", "answerable": "نعم/جزئياً/لا", "comment": "..."}}"""
 
     try:
-        response = model.generate_content(prompt)
+        response = cohere_client.chat(
+            message=prompt,
+            model='command-r-plus'
+        )
         result_text = response.text.strip()
         if result_text.startswith("```"):
             result_text = result_text.split("```")[1]
@@ -308,7 +307,8 @@ with tab4:
                     limit=5
                 )
                 
-                evaluation = evaluate_with_gemini(
+                evaluation = evaluate_with_cohere(
+                    cohere_client,
                     question_data['question'],
                     question_data['source'],
                     search_results
