@@ -1,0 +1,29 @@
+# Data and DBs
+data/
+*.db
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+dist/
+build/
+
+# Chroma
+chroma/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Pytest
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Streamlit
+.streamlit/

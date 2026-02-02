@@ -1,0 +1,7 @@
+This is a sample English document for testing the document parser.
+
+It contains multiple paragraphs. The parser should detect structure and choose an appropriate chunking strategy.
+
+Section two: retrieval benchmarks. You can query for "retrieval" or "chunking" to test semantic search.
+
+Section three: RAG integration. The system stores chunks in a vector database and SQL for structured queries.

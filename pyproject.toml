@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pyxon-ai-document-parser"
+version = "0.1.0"
+description = "AI-powered document parser with LangGraph, intelligent chunking, and RAG"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "langgraph>=0.2.0",
+    "langchain>=0.3.0",
+    "langchain-chroma>=0.1.0",
+    "langchain-community>=0.3.0",
+    "pypdf>=4.0.0",
+    "python-docx>=1.1.0",
+    "sentence-transformers>=3.0.0",
+    "chromadb>=0.4.0",
+    "streamlit>=1.28.0",
+    "pytest>=7.4.0",
+    "python-dotenv>=1.0.0",
+    "networkx>=3.2.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest-cov>=4.1.0"]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["src*"]
+
+[tool.pytest.ini_options]
+testpaths = ["benchmarks"]
+pythonpath = ["src"]
