@@ -4,6 +4,7 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 import json
+import os
 from datetime import datetime
 
 st.set_page_config(
@@ -12,7 +13,8 @@ st.set_page_config(
     layout="wide"
 )
 
-API_BASE_URL = st.secrets.get("API_BASE_URL", "http://localhost:8000")
+# Read from environment variables (Railway) or st.secrets (local)
+API_BASE_URL = os.getenv("API_BASE_URL", "http://localhost:8000")
 
 st.title("🔍 AI Parser Evaluation Dashboard")
 st.markdown("---")
