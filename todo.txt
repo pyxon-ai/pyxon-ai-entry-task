@@ -1,0 +1,10 @@
+- [v] Document parsing (PDF, DOCX, TXT)
+- [v] Content analysis and chunking strategy selection
+- [v] Fixed and dynamic chunking
+- [v] Vector DB integration
+- [v] SQL DB integration
+- [v] Arabic language support
+- [v] Arabic diacritics support
+- [v] Benchmark suite
+- [v] RAG integration ready
+- [v] frontend

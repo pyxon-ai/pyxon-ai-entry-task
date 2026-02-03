@@ -1,0 +1,39 @@
+1. .doc is unsupported by python-docx, so I only handle 
+   .docx and will note this as an assumption in the PR.
+
+2. for chunker type [FIXED, DECISION]. There is many approaches to chose based 
+   on like # of imgs, headers, tables there, paragraph variation coefficient, 
+   even embedding variation or any statistical analysis, llm as a judge and etc. 
+   However, and due to task limitation of pkgs to use (e.g., pypdf, python-docx), 
+   these existing parsers are too weak to capture document layout, and 
+   due to task limitation and infra limitation I cant go with layout 
+   aware parser (e.g., marker, document pretrained transformer (DPT), 
+   llamaindex, ...) locally on my machine maybe I just go and aanlyze docuemnt text and search for
+   hardcoded words or signals to select chunker type based on, but this
+   will fail and require extensive analysis and domain knowledge.
+
+   Well, we can choose one single chunking mechanisim that handels boath, but
+   since the task describtion forces me to do this decision manually, I'll avoid 
+   doing this :) 
+
+
+   I'll go forward with simple thresholding mecha, paragraph len variation, due to deadline
+   limitation.
+
+3. Ive used multilingual `text-embedding-3-large` embed model, so no need for extra efforts
+   on normalizing arabic text
+
+4. Graph RAG and RAPTOR were deemed unsuitable based on architectural 
+   analysis: Graph RAG requires reliable entity extraction across diverse 
+   domains (legal, medical, technical) which is fragile and computationally 
+   expensive when document types are unknown at ingestion, 
+   while RAPTOR assumes hierarchical document structure that doesn't exist 
+   in mixed user uploads (forms, notes, contracts, reports). 
+   Instead, I adopted a multi-stage hybrid architecture combining vector similarity 
+   search, BM25 keyword matching, and metadata filtering to handle 
+   multi-domain semantic drift. Cross-encoder re-ranking provides 
+   second-stage scoring to improve top-k precision, while lightweight
+   agentic reflection enables iterative query refinement when initial retrieval 
+   fails—critical for cross-domain queries. This approach balances retrieval
+    quality with implementation simplicity and maintainability for 
+    unknown document types.
