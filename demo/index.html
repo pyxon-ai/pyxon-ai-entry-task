@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pyxon AI Document Parser</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+        
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+        
+        .header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+        
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .card h2 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 1.5em;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: #555;
+            font-weight: 500;
+        }
+        
+        input[type="text"],
+        input[type="file"],
+        select,
+        textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+        
+        button {
+            background: #667eea;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: background 0.3s;
+        }
+        
+        button:hover {
+            background: #5568d3;
+        }
+        
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        
+        .result {
+            background: #f8f9fa;
+            border-left: 4px solid #667eea;
+            padding: 15px;
+            border-radius: 4px;
+            margin-top: 15px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        
+        .result.error {
+            border-left-color: #dc3545;
+            background: #f8d7da;
+        }
+        
+        .result.success {
+            border-left-color: #28a745;
+            background: #d4edda;
+        }
+        
+        .document-list {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .document-item {
+            background: #f8f9fa;
+            padding: 10px;
+            margin-bottom: 10px;
+            border-radius: 4px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .document-info {
+            flex: 1;
+        }
+        
+        .document-info strong {
+            display: block;
+            color: #333;
+        }
+        
+        .document-info small {
+            color: #666;
+        }
+        
+        .badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        
+        .badge-arabic {
+            background: #e7f3ff;
+            color: #0066cc;
+        }
+        
+        .badge-diacritics {
+            background: #fff3cd;
+            color: #856404;
+        }
+        
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        
+        .stat-card .value {
+            font-size: 2em;
+            font-weight: bold;
+        }
+        
+        .stat-card .label {
+            font-size: 0.9em;
+            opacity: 0.9;
+        }
+        
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-left: 10px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .benchmark-results {
+            margin-top: 15px;
+        }
+        
+        .benchmark-item {
+            padding: 10px;
+            margin-bottom: 8px;
+            border-radius: 4px;
+        }
+        
+        .benchmark-item.passed {
+            background: #d4edda;
+            border-left: 4px solid #28a745;
+        }
+        
+        .benchmark-item.failed {
+            background: #f8d7da;
+            border-left: 4px solid #dc3545;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 Pyxon AI Document Parser</h1>
+            <p>AI-powered document parser with full Arabic support including diacritics (harakat)</p>
+        </div>
+        
+        <!-- Stats -->
+        <div class="card" style="margin-bottom: 20px;">
+            <h2>📊 System Statistics</h2>
+            <div class="stats">
+                <div class="stat-card">
+                    <div class="value" id="totalDocs">0</div>
+                    <div class="label">Documents</div>
+                </div>
+                <div class="stat-card">
+                    <div class="value" id="totalChunks">0</div>
+                    <div class="label">Chunks</div>
+                </div>
+                <div class="stat-card">
+                    <div class="value" id="arabicDocs">0</div>
+                    <div class="label">Arabic Docs</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="grid">
+            <!-- Upload Document -->
+            <div class="card">
+                <h2>📄 Upload Document</h2>
+                <div class="form-group">
+                    <label for="fileInput">Select File (PDF, DOCX, TXT)</label>
+                    <input type="file" id="fileInput" accept=".pdf,.docx,.txt">
+                </div>
+                <div class="form-group">
+                    <label for="chunkingStrategy">Chunking Strategy</label>
+                    <select id="chunkingStrategy">
+                        <option value="auto">Auto (Recommended)</option>
+                        <option value="fixed">Fixed Size</option>
+                        <option value="dynamic">Dynamic (Structure-based)</option>
+                    </select>
+                </div>
+                <button onclick="uploadFile()" id="uploadBtn">Upload & Process</button>
+                <div id="uploadResult"></div>
+            </div>
+            
+            <!-- Query -->
+            <div class="card">
+                <h2>❓ Ask Question</h2>
+                <div class="form-group">
+                    <label for="queryInput">Enter your question (English or Arabic)</label>
+                    <input type="text" id="queryInput" placeholder="e.g., What is this document about?">
+                </div>
+                <div class="form-group">
+                    <label for="topK">Number of results</label>
+                    <select id="topK">
+                        <option value="3">3</option>
+                        <option value="5" selected>5</option>
+                        <option value="10">10</option>
+                    </select>
+                </div>
+                <button onclick="askQuestion()" id="queryBtn">Ask</button>
+                <div id="queryResult"></div>
+            </div>
+        </div>
+        
+        <div class="grid">
+            <!-- Documents List -->
+            <div class="card">
+                <h2>📚 Documents</h2>
+                <button onclick="listDocuments()">Refresh List</button>
+                <div class="document-list" id="documentList"></div>
+            </div>
+            
+            <!-- Benchmarks -->
+            <div class="card">
+                <h2>🧪 Run Benchmarks</h2>
+                <p style="margin-bottom: 15px; color: #666;">Test retrieval accuracy, chunking quality, Arabic support, and performance.</p>
+                <button onclick="runBenchmarks()" id="benchmarkBtn">Run All Benchmarks</button>
+                <div id="benchmarkResults"></div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Helper functions for displaying messages
+        function showError(elementId, message) {
+            const element = document.getElementById(elementId);
+            element.innerHTML = '<div class="result error">✗ ' + message + '</div>';
+        }
+
+        function showSuccess(elementId, message) {
+            const element = document.getElementById(elementId);
+            element.innerHTML = '<div class="result success">✓ ' + message + '</div>';
+        }
+
+        function showLoading(elementId, message) {
+            const element = document.getElementById(elementId);
+            element.innerHTML = '<div class="result">' + message + ' <span class="loading"></span></div>';
+        }
+
+        // Upload file
+        async function uploadFile() {
+            const fileInput = document.getElementById('fileInput');
+            const file = fileInput.files[0];
+            const chunkingStrategy = document.getElementById('chunkingStrategy').value;
+            
+            if (!file) {
+                showError('uploadResult', 'Please select a file');
+                return;
+            }
+            
+            // Validate file size (10MB max)
+            const maxSize = 10 * 1024 * 1024; // 10MB
+            if (file.size > maxSize) {
+                showError('uploadResult', 'File too large. Maximum size is 10MB');
+                return;
+            }
+            
+            // Validate file type
+            const allowedTypes = ['.pdf', '.docx', '.doc', '.txt'];
+            const fileExt = '.' + file.name.split('.').pop().toLowerCase();
+            if (!allowedTypes.includes(fileExt)) {
+                showError('uploadResult', 'Unsupported file type. Allowed types: PDF, DOCX, DOC, TXT');
+                return;
+            }
+            
+            const btn = document.getElementById('uploadBtn');
+            btn.disabled = true;
+            btn.innerHTML = 'Processing...';
+            
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('chunking_strategy', chunkingStrategy);
+            
+            try {
+                const response = await fetch('/api/documents/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok && result.success) {
+                    showSuccess('uploadResult', 
+                        'Success!<br>Document ID: ' + result.document_id + '<br>' +
+                        'Chunks created: ' + result.chunks_created + '<br>' +
+                        'Processing time: ' + result.processing_time.toFixed(2) + 's'
+                    );
+                    listDocuments();
+                    updateStats();
+                } else {
+                    showError('uploadResult', result.error || result.detail || 'Upload failed');
+                }
+            } catch (error) {
+                console.error('Upload error:', error);
+                showError('uploadResult', 'Network error: ' + error.message);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = 'Upload & Process';
+            }
+        }
+        
+        // Ask question
+        async function askQuestion() {
+            const query = document.getElementById('queryInput').value;
+            const topK = document.getElementById('topK').value;
+            
+            if (!query || query.trim() === '') {
+                showError('queryResult', 'Please enter a question');
+                return;
+            }
+            
+            if (query.length > 1000) {
+                showError('queryResult', 'Question too long (max 1000 characters)');
+                return;
+            }
+            
+            const btn = document.getElementById('queryBtn');
+            btn.disabled = true;
+            btn.innerHTML = 'Searching...';
+            showLoading('queryResult', 'Searching...');
+            
+            try {
+                const response = await fetch('/api/query', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        question: query,
+                        top_k: parseInt(topK)
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    let html = '<div class="result success"><strong>Answer:</strong><br>' + 
+                               (result.answer || 'No answer generated') + '</div>';
+                    
+                    if (result.sources && result.sources.length > 0) {
+                        html += '<div style="margin-top: 15px;"><strong>Sources:</strong><ul>';
+                        result.sources.forEach((source, i) => {
+                            html += '<li>' + (i + 1) + '. ' + 
+                                   (source.content || 'No content') + '</li>';
+                        });
+                        html += '</ul></div>';
+                    }
+                    
+                    document.getElementById('queryResult').innerHTML = html;
+                } else {
+                    showError('queryResult', result.error || result.detail || 'Query failed');
+                }
+            } catch (error) {
+                console.error('Query error:', error);
+                showError('queryResult', 'Network error: ' + error.message);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = 'Ask';
+            }
+        }
+        
+        // List documents
+        async function listDocuments() {
+            try {
+                const response = await fetch('/api/documents');
+                if (!response.ok) {
+                    throw new Error('Failed to load documents');
+                }
+                const documents = await response.json();
+                
+                let html = '';
+                if (documents.length === 0) {
+                    html = '<p style="color: #666; text-align: center;">No documents uploaded yet</p>';
+                } else {
+                    documents.forEach(doc => {
+                        html += '<div class="document-item">';
+                        html += '<div class="document-info">';
+                        html += '<strong>' + escapeHtml(doc.filename) + '</strong>';
+                        html += '<small>' + doc.chunk_count + ' chunks | ' + doc.chunking_strategy + ' chunking</small>';
+                        if (doc.has_arabic) {
+                            html += ' <span class="badge badge-arabic">Arabic</span>';
+                        }
+                        if (doc.has_diacritics) {
+                            html += ' <span class="badge badge-diacritics">Diacritics</span>';
+                        }
+                        html += '</div>';
+                        html += '<button onclick="deleteDocument(\'' + doc.id + '\')" style="padding: 5px 10px; font-size: 12px;">Delete</button>';
+                        html += '</div>';
+                    });
+                }
+                
+                document.getElementById('documentList').innerHTML = html;
+            } catch (error) {
+                console.error('Error loading documents:', error);
+                document.getElementById('documentList').innerHTML = 
+                    '<div class="result error">Error loading documents: ' + error.message + '</div>';
+            }
+        }
+        
+        // Helper function to escape HTML
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        // Delete document
+        async function deleteDocument(documentId) {
+            if (!confirm('Are you sure you want to delete this document?')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/documents/' + documentId, {
+                    method: 'DELETE'
+                });
+                
+                if (response.ok) {
+                    listDocuments();
+                    updateStats();
+                } else {
+                    const error = await response.json();
+                    alert('Error deleting document: ' + (error.error || error.detail || 'Unknown error'));
+                }
+            } catch (error) {
+                console.error('Delete error:', error);
+                alert('Error: ' + error.message);
+            }
+        }
+        
+        // Run benchmarks
+        async function runBenchmarks() {
+            const btn = document.getElementById('benchmarkBtn');
+            btn.disabled = true;
+            btn.innerHTML = 'Running...';
+            showLoading('benchmarkResults', 'Running benchmarks...');
+            
+            try {
+                const response = await fetch('/api/benchmarks');
+                if (!response.ok) {
+                    throw new Error('Failed to run benchmarks');
+                }
+                const report = await response.json();
+                
+                let html = '<div class="benchmark-results">';
+                html += '<h3>Benchmark Results</h3>';
+                html += '<p><strong>Total Tests:</strong> ' + report.total_tests + ' | ';
+                html += '<strong>Passed:</strong> ' + report.passed + ' | ';
+                html += '<strong>Average Score:</strong> ' + report.average_score.toFixed(2) + '%</p>';
+                
+                if (report.results && report.results.length > 0) {
+                    report.results.forEach(result => {
+                        const statusClass = result.passed ? 'passed' : 'failed';
+                        const statusIcon = result.passed ? '✓' : '✗';
+                        html += '<div class="benchmark-item ' + statusClass + '">';
+                        html += '<strong>' + statusIcon + ' ' + escapeHtml(result.test_name) + '</strong><br>';
+                        html += 'Score: ' + result.score.toFixed(2) + '% | Time: ' + result.execution_time.toFixed(2) + 's';
+                        html += '</div>';
+                    });
+                }
+                
+                html += '</div>';
+                document.getElementById('benchmarkResults').innerHTML = html;
+            } catch (error) {
+                console.error('Benchmark error:', error);
+                showError('benchmarkResults', 'Error running benchmarks: ' + error.message);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = 'Run All Benchmarks';
+            }
+        }
+        
+        // Update stats
+        async function updateStats() {
+            try {
+                const response = await fetch('/api/stats');
+                if (!response.ok) {
+                    throw new Error('Failed to load stats');
+                }
+                const stats = await response.json();
+                
+                document.getElementById('totalDocs').textContent = stats.total_documents || 0;
+                document.getElementById('totalChunks').textContent = stats.total_chunks || 0;
+                document.getElementById('arabicDocs').textContent = stats.arabic_documents || 0;
+            } catch (error) {
+                console.error('Error updating stats:', error);
+                // Silently fail on stats update
+            }
+        }
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            listDocuments();
+            updateStats();
+        });
+    </script>
+</body>
+</html>
