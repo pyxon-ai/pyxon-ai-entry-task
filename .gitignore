@@ -1,0 +1,80 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual Environment
+venv/
+ENV/
+env/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Databases
+databases/
+*.db
+*.sqlite
+*.sqlite3
+
+# ChromaDB
+chroma_db/
+*.parquet
+
+# Output
+output/
+*.json
+benchmarks_*.json
+
+# Logs
+*.log
+logs/
+
+# System
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.bak
+*.cache
+
+# Model cache
+.cache/
+models/
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
+
+# Data (uncomment if you want to ignore data files)
+# data/
+# *.pdf
+# *.docx
+# *.txt
