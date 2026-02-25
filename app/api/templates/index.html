@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Document Parser - معالج الوثائق الذكي</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&family=Outfit:wght@300;400;600&family=Tajawal:wght@300;500;700&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            --primary: #6366f1;
+            --secondary: #a855f7;
+            --background: #0f172a;
+            --surface: #1e293b;
+            --text: #f8fafc;
+            --text-dim: #94a3b8;
+            --glass: rgba(30, 41, 59, 0.7);
+        }
+
+        html {
+            direction: rtl;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Cairo', sans-serif;
+            background: var(--background);
+            color: var(--text);
+            min-height: 100vh;
+            direction: rtl;
+            text-align: right;
+            background-image: radial-gradient(circle at top right, rgba(99, 102, 241, 0.1), transparent),
+                radial-gradient(circle at bottom left, rgba(168, 85, 247, 0.1), transparent);
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 60px;
+            animation: fadeInDown 0.8s ease-out;
+        }
+
+        h1 {
+            font-size: 3rem;
+            margin-bottom: 10px;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-weight: 700;
+        }
+
+        p.subtitle {
+            color: var(--text-dim);
+            font-size: 1.2rem;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+        }
+
+        .card {
+            background: var(--glass);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 24px;
+            padding: 30px;
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            border-color: var(--primary);
+        }
+
+        .input-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: var(--text-dim);
+        }
+
+        input[type="text"],
+        input[type="file"] {
+            width: 100%;
+            padding: 12px 16px;
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            color: white;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        input[type="text"]:focus {
+            border-color: var(--primary);
+        }
+
+        button {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            border: none;
+            border-radius: 12px;
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            transition: opacity 0.2s, transform 0.1s;
+        }
+
+        button:active {
+            transform: scale(0.98);
+        }
+
+        .results {
+            grid-column: span 2;
+            margin-top: 20px;
+        }
+
+        .chunk-card {
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 15px;
+            border-right: 4px solid var(--primary);
+        }
+
+        .chunk-meta {
+            font-size: 0.8rem;
+            color: var(--primary);
+            margin-bottom: 8px;
+        }
+
+        .chunk-text {
+            line-height: 1.8;
+            direction: rtl;
+            unicode-bidi: plaintext;
+            text-align: right;
+            white-space: normal;
+            font-family: 'Cairo', sans-serif;
+        }
+
+        @keyframes fadeInDown {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .status {
+            margin-top: 10px;
+            font-size: 0.9rem;
+            text-align: center;
+        }
+
+        .loading {
+            display: none;
+            margin: 20px auto;
+            border: 4px solid rgba(255, 255, 255, 0.1);
+            border-left-color: var(--primary);
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
+
+            .results {
+                grid-column: span 1;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <h1>معالج الوثائق الذكي</h1>
+            <p class="subtitle">نظام متطور لمعالجة النصوص العربية و RAG</p>
+        </header>
+
+        <div class="grid">
+            <!-- Upload Section -->
+            <div class="card">
+                <h2>📁 رفع وثيقة</h2>
+                <p style="color: var(--text-dim); margin-bottom: 20px;">يدعم PDF, DOCX, TXT مع الحفاظ على التشكيل</p>
+                <div class="input-group">
+                    <input type="file" id="fileInput" accept=".pdf,.docx,.txt">
+                </div>
+                <button onclick="uploadFile()">بدء المعالجة</button>
+                <div id="uploadStatus" class="status"></div>
+            </div>
+
+            <!-- Query Section -->
+            <div class="card">
+                <h2>🔍 بحث دلالي</h2>
+                <p style="color: var(--text-dim); margin-bottom: 20px;">اسأل أي سؤال حول محتوى الوثائق المرفوعة</p>
+                <div class="input-group">
+                    <input type="text" id="queryInput" placeholder="أدخل سؤالك هنا...">
+                </div>
+                <button onclick="searchQuery()">بحث</button>
+                <div id="queryStatus" class="status"></div>
+            </div>
+
+            <!-- Results Section -->
+            <div id="resultsContainer" class="results">
+                <!-- Chunks will appear here -->
+            </div>
+        </div>
+
+        <div id="loader" class="loading"></div>
+    </div>
+
+    <script>
+        async function uploadFile() {
+            const fileInput = document.getElementById('fileInput');
+            const status = document.getElementById('uploadStatus');
+            const loader = document.getElementById('loader');
+
+            if (!fileInput.files[0]) return alert('يرجى اختيار ملف أولاً');
+
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+
+            status.innerText = 'جاري المعالجة...';
+            loader.style.display = 'block';
+
+            try {
+                const response = await fetch('/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.detail || 'حدث خطأ أثناء الرفع');
+                }
+                const data = await response.json();
+                status.style.color = '#10b981';
+                status.innerText = `✅ تم بنجاح: ${data.filename}`;
+
+                // Show preview
+                if (data.preview && data.preview.length > 0) {
+                    const resultsContainer = document.getElementById('resultsContainer');
+                    resultsContainer.innerHTML = '<h3>معاينة الوثيقة (أول 3 أجزاء):</h3>';
+                    data.preview.forEach((chunk, i) => {
+                        const chunkHtml = `
+                            <div class="chunk-card" style="border-right-color: var(--secondary);">
+                                <div class="chunk-meta">معاينة جزء ${i + 1}</div>
+                                <div class="chunk-text">${chunk}</div>
+                            </div>
+                        `;
+                        resultsContainer.innerHTML += chunkHtml;
+                    });
+                }
+            } catch (error) {
+                status.style.color = '#ef4444';
+                status.innerText = `❌ ${error.message}`;
+            } finally {
+                loader.style.display = 'none';
+            }
+        }
+
+        async function searchQuery() {
+            const queryInput = document.getElementById('queryInput');
+            const resultsContainer = document.getElementById('resultsContainer');
+            const loader = document.getElementById('loader');
+
+            if (!queryInput.value) return alert('يرجى إدخال سؤال للبحث');
+
+            loader.style.display = 'block';
+            resultsContainer.innerHTML = '';
+
+            try {
+                const response = await fetch('/query', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ query: queryInput.value, top_k: 3 })
+                });
+                const data = await response.json();
+
+                if (data.results.documents[0].length === 0) {
+                    resultsContainer.innerHTML = '<p style="text-align:center">لا يوجد نتائج متطابقة</p>';
+                    return;
+                }
+
+                data.results.documents[0].forEach((doc, i) => {
+                    const metadata = data.results.metadatas[0][i];
+                    const chunkHtml = `
+                        <div class="chunk-card" style="animation: fadeInDown ${0.3 + (i * 0.1)}s ease-out">
+                            <div class="chunk-meta">وثيقة: ${metadata.filename} | جزء رقم: ${metadata.chunk_index}</div>
+                            <div class="chunk-text">${doc}</div>
+                        </div>
+                    `;
+                    resultsContainer.innerHTML += chunkHtml;
+                });
+            } catch (error) {
+                alert('حدث خطأ أثناء البحث');
+            } finally {
+                loader.style.display = 'none';
+            }
+        }
+    </script>
+</body>
+
+</html>
