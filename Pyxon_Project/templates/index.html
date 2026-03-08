@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pyxon | AI Document Search</title>
+    <!-- Use a modern Google font -->
+    <link
+        href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&family=Inter:wght@400;500;600&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header>
+            <h1>Pyxon <span class="highlight">AI</span></h1>
+            <p>Intelligent Semantic Document Parsing & Retrieval</p>
+        </header>
+
+        <!-- Main Content Grid -->
+        <main class="grid-layout">
+
+            <!-- Left Panel: Upload -->
+            <section class="panel upload-panel">
+                <h2>Knowledge Base</h2>
+                <div class="upload-zone" id="upload-zone">
+                    <div class="upload-icon">📄</div>
+                    <p>Drag & Drop your PDF, DOCX, or TXT here</p>
+                    <p class="sub-text">or click to browse</p>
+                    <input type="file" id="file-input" accept=".pdf,.txt,.docx" hidden>
+                </div>
+                <div id="upload-status" class="status-msg"></div>
+            </section>
+
+            <!-- Right Panel: Search -->
+            <section class="panel search-panel">
+                <h2>Semantic Search</h2>
+                <div class="search-box">
+                    <input type="text" id="query-input" placeholder="Ask a question in English or Arabic...">
+                    <button id="search-btn">Search</button>
+                </div>
+
+                <div class="filters">
+                    <label for="file-select">Search in:</label>
+                    <select id="file-select" class="glass-select">
+                        <option value="All Files">All Files</option>
+                    </select>
+                </div>
+
+                <!-- Results Display -->
+                <div class="results-container" id="results-container">
+                    <div class="placeholder-text">Answers will appear here...</div>
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    <!-- Script -->
+    <script src="/static/js/app.js"></script>
+</body>
+
+</html>

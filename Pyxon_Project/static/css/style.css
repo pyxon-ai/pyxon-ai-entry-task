@@ -1,0 +1,264 @@
+/* Base Styles */
+:root {
+    --bg-color: #0f172a;
+    --panel-bg: rgba(30, 41, 59, 0.7);
+    --text-main: #f8fafc;
+    --text-muted: #94a3b8;
+    --accent: #3b82f6;
+    --accent-hover: #2563eb;
+    --border: rgba(255, 255, 255, 0.1);
+    --success: #10b981;
+    --danger: #ef4444;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: 'Inter', 'Cairo', sans-serif;
+    background: var(--bg-color);
+    color: var(--text-main);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background-image: radial-gradient(circle at 10% 20%, rgba(59, 130, 246, 0.15) 0%, transparent 50%),
+        radial-gradient(circle at 90% 80%, rgba(139, 92, 246, 0.15) 0%, transparent 50%);
+}
+
+.app-container {
+    width: 90%;
+    max-width: 1200px;
+    margin: 2rem auto;
+}
+
+header {
+    text-align: center;
+    margin-bottom: 3rem;
+}
+
+header h1 {
+    font-size: 3rem;
+    font-weight: 700;
+    letter-spacing: -1px;
+}
+
+.highlight {
+    color: var(--accent);
+}
+
+header p {
+    color: var(--text-muted);
+    font-size: 1.1rem;
+    margin-top: 0.5rem;
+}
+
+/* Grid Layout */
+.grid-layout {
+    display: grid;
+    grid-template-columns: 1fr 2fr;
+    gap: 2rem;
+}
+
+.panel {
+    background: var(--panel-bg);
+    backdrop-filter: blur(12px);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 2rem;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+}
+
+.panel h2 {
+    font-size: 1.5rem;
+    margin-bottom: 1.5rem;
+    font-weight: 600;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 0.75rem;
+}
+
+/* Upload Zone */
+.upload-zone {
+    border: 2px dashed var(--border);
+    border-radius: 12px;
+    padding: 3rem 1rem;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.upload-zone:hover,
+.upload-zone.dragover {
+    border-color: var(--accent);
+    background: rgba(59, 130, 246, 0.05);
+}
+
+.upload-icon {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+}
+
+.sub-text {
+    font-size: 0.9rem;
+    color: var(--text-muted);
+    margin-top: 0.5rem;
+}
+
+.status-msg {
+    margin-top: 1rem;
+    font-size: 0.9rem;
+    text-align: center;
+    min-height: 20px;
+}
+
+.status-msg.success {
+    color: var(--success);
+}
+
+.status-msg.error {
+    color: var(--danger);
+}
+
+/* Search Elements */
+.search-box {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+input[type="text"] {
+    flex: 1;
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1rem 1.2rem;
+    color: var(--text-main);
+    font-size: 1rem;
+    font-family: inherit;
+    transition: border-color 0.3s;
+}
+
+input[type="text"]:focus {
+    outline: none;
+    border-color: var(--accent);
+}
+
+button {
+    background: var(--accent);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 0 2rem;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.3s, transform 0.1s;
+}
+
+button:hover {
+    background: var(--accent-hover);
+}
+
+button:active {
+    transform: scale(0.98);
+}
+
+.filters {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 2rem;
+}
+
+.filters label {
+    font-size: 0.9rem;
+    color: var(--text-muted);
+}
+
+.glass-select {
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid var(--accent);
+    color: var(--text-main);
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    cursor: pointer;
+    outline: none;
+    font-family: inherit;
+    /* Optional: add transition for hover */
+    transition: background 0.3s;
+}
+
+.glass-select:hover {
+    background: rgba(59, 130, 246, 0.2);
+}
+
+/* Dropdown options styling */
+.glass-select option {
+    background: var(--bg-color);
+    /* Need solid bg otherwise text is unreadable */
+    color: var(--text-main);
+}
+
+/* Results Display */
+.results-container {
+    min-height: 300px;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.placeholder-text {
+    text-align: center;
+    color: var(--text-muted);
+    margin: auto;
+    font-style: italic;
+}
+
+.result-card {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.5rem;
+    transition: transform 0.2s;
+    /* VERY IMPORTANT FOR ARABIC RTL */
+    /* Uses CSS unicode-bidi to auto-detect text direction based on Arabic chars */
+    unicode-bidi: plaintext;
+    text-align: start;
+    line-height: 1.6;
+}
+
+.result-card:hover {
+    transform: translateY(-2px);
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+.result-meta {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.8rem;
+    color: var(--accent);
+    margin-bottom: 1rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.quality-badge {
+    display: inline-block;
+    background: rgba(16, 185, 129, 0.1);
+    color: var(--success);
+    padding: 0.3rem 0.8rem;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    margin-bottom: 1rem;
+}
+
+/* Responsive */
+@media (max-width: 900px) {
+    .grid-layout {
+        grid-template-columns: 1fr;
+    }
+}
