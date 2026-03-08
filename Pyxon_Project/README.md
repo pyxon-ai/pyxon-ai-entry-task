@@ -11,7 +11,7 @@ Pyxon is a powerful, local-first Retrieval-Augmented Generation (RAG) backend de
 
 ---
 
-## 💻 How to Run Locally
+## How to Run 
 
 If you are cloning this repository to your own machine, follow these steps to start the web server.
 
@@ -44,16 +44,7 @@ You must have Python 3.10+ installed on your computer.
     ```
     http://127.0.0.1:7860
     ```
-3.  Drag and drop your PDFs into the "Knowledge Base" zone. Note: The first time you upload a document, the server will briefly pause to download the `mpnet` embedding model.
+3.  Drag and drop your PDFs into the "Knowledge Base" zone. Note: The first time you upload a document, it will take some time to load.
 
----
 
-## ☁️ How to Deploy to Hugging Face Spaces
 
-This project includes a `Dockerfile` and has been pre-configured to bind to port `7860`, meaning it is 100% ready to be deployed as a live website on Hugging Face Spaces.
-
-1.  Create a free account on [Hugging Face](https://huggingface.co/).
-2.  Navigate to the [Spaces Dashboard](https://huggingface.co/spaces) and click **Create new Space**.
-3.  Name your Space (e.g., `Pyxon-AI`) and select the **Docker** environment (Blank template).
-4.  Once the Space is created, upload the files from this repository directly into the Space. **(Do not upload the `venv` folder or the `__pycache__` folders).**
-5.  Hugging Face will automatically read the `Dockerfile`, install NLTK and your requirements, and launch your live website!
