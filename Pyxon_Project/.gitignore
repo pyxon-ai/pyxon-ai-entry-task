@@ -1,0 +1,18 @@
+# Virtual Environments
+venv/
+venv2/
+env/
+.venv/
+
+# Python Cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Temporary Uploads
+uploads/
+
+# User PDFs (Optional: you can keep them out so your repo is lightweight)
+*.pdf
+*.docx
