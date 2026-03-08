@@ -1,13 +1,13 @@
 # Pyxon AI: Intelligent Document Parsing & Retrieval
 
-Pyxon is a powerful, local-first Retrieval-Augmented Generation (RAG) backend designed for accurate semantic document search. It features a custom NLP chunking pipeline that preserves semantic boundaries and a lightweight, beautiful Flask web interface designed to natively support Right-to-Left (RTL) Arabic text.
+Pyxon is a powerful, local-first Retrieval-Augmented Generation (RAG) backend designed for accurate semantic document search. It features a custom NLP chunking pipeline that preserves semantic boundaries and a Flask web interface designed to natively support Right-to-Left (RTL) Arabic text.
 
 ## Features
-*   **Semantic NLTK Chunking:** Intelligently splits PDFs, DOCX, and TXT files using natural sentence boundaries, entirely avoiding mid-word or mid-sentence cuts.
+*   **Semantic NLTK Chunking:**  splits PDFs, DOCX, and TXT files using natural sentence boundaries, entirely avoiding mid-word or mid-sentence cuts.
 *   **Advanced Semantic Search:** Utilizes the `paraphrase-multilingual-mpnet-base-v2` embedding model from Hugging Face for deep conceptual understanding of both English and Arabic texts.
-*   **Persistent Storage:** Metadata is stored in a clean SQLite database, while vector embeddings are instantly stored and retrieved via ChromaDB.
-*   **Dynamic UI Dropdown:** Search across your entire Knowledge Base or restrict your query to a specific, recently uploaded file using the dynamic UI dropdown.
-*   **Native Arabic Support:** Flawlessly handles bidirectional text and Arabic queries via the web interface.
+*   **Persistent Storage:** Metadata is stored in a SQLite database, while vector embeddings are instantly stored and retrieved via ChromaDB.
+*   **Dynamic UI Dropdown:** Search across your entire Knowledge Base or restrict your query to a specific, recently uploaded file using the UI dropdown.
+*   **Native Arabic Support:**  handles bidirectional text and Arabic queries via the web interface.
 
 ---
 
