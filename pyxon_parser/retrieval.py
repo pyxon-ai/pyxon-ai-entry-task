@@ -116,13 +116,22 @@ class HybridRetriever:
 
         ranked = sorted(fused.items(), key=lambda x: -x[1])
         if len(rankings) > 1 and ranked and min_relative_score > 0:
-            # Drop weak filler: hits only a single retriever found that score far below the best hit.
+            # Drop weak filler that only one retriever found.
             best = ranked[0][1]
-            ranked = [(cid, sc) for cid, sc in ranked
-                      if len(sources[cid]) > 1                     # confirmed by several retrievers
-                      or (min(sources[cid].values()) <= self.keep_top_rank   # or a top hit of a semantic
-                          and raw[cid].get("vector", 0.0) >= self.vector_min_sim)  # retriever with a strong match
-                      or sc >= min_relative_score * best]
+            neural = self.keep_top_rank > 0
+
+            def keep(cid: str, sc: float) -> bool:
+                if len(sources[cid]) > 1:            # confirmed by several retrievers
+                    return True
+                if neural and "vector" in sources[cid]:
+                    # vector-only hit from a neural model: trust its cosine, not its rank. Calibrated
+                    # on the demo (multilingual MiniLM): right answers found only semantically score
+                    # >= 0.5-0.7, unrelated chunks stay below ~0.4, so rank alone lets noise through.
+                    return raw[cid]["vector"] >= self.vector_min_sim
+                return sc >= min_relative_score * best
+
+            filtered = [(cid, sc) for cid, sc in ranked if keep(cid, sc)]
+            ranked = filtered or ranked[:1]  # never return nothing when something matched
         top = ranked[: k * 4]
         rows = self.sql.get_chunks([cid for cid, _ in top])
         results: list[SearchResult] = []
