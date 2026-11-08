@@ -164,11 +164,11 @@ with gr.Blocks(title="Pyxon AI Document Parser") as demo:
         with gr.Accordion("RAPTOR summary tree", open=False):
             summaries_html = gr.HTML()
     with gr.Tab("2 · Search"):
+        q = gr.Textbox(label="Query (Arabic with or without harakat, or English)", value="سَدُّ مَأْرِبَ")
         with gr.Row():
-            q = gr.Textbox(label="Query (Arabic with or without harakat, or English)", value="سَدُّ مَأْرِبَ", scale=4)
-            mode = gr.Dropdown(["hybrid", "vector", "keyword", "graph"], value="hybrid", label="Retriever")
-            k = gr.Slider(1, 10, value=5, step=1, label="k")
-            summ = gr.Checkbox(label="Include RAPTOR summaries")
+            mode = gr.Dropdown(["hybrid", "vector", "keyword", "graph"], value="hybrid", label="Retriever", min_width=160)
+            k = gr.Slider(1, 10, value=5, step=1, label="Results (k)", min_width=200)
+            summ = gr.Checkbox(label="Include RAPTOR summaries", min_width=200)
         sbtn = gr.Button("Search", variant="primary")
         gr.Examples([["سد مأرب"], ["كيف تتكون السحب؟"], ["مهندسة برمجيات"], ["Which forklift failed inspection?"],
                      ["penny universities"]], inputs=[q])
