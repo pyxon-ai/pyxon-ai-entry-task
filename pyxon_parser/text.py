@@ -8,7 +8,8 @@ from collections import Counter
 from .arabic import ARABIC_STOPWORDS, normalize_for_index
 
 # Sentence ends: Latin . ! ? and Arabic question mark / full stop, followed by space.
-_SENT_SPLIT_RE = re.compile(r"(?<=[.!?؟۔])\s+")
+# Split after . ! ? and Arabic ؟ ۔ — but not after a single-letter initial ("L. Nasser") or "e.g."/"i.e."
+_SENT_SPLIT_RE = re.compile(r"(?<![\s(][A-Za-z]\.)(?<!^[A-Za-z]\.)(?<!\be\.g\.)(?<!\bi\.e\.)(?<=[.!?\u061F\u06D4])\s+")
 # \w covers Arabic letters/digits; harakat (combining marks) are added so vocalized words stay whole.
 _TOKEN_RE = re.compile(r"[\w\u064B-\u065F\u0670]+", re.UNICODE)
 

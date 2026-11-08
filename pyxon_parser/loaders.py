@@ -104,7 +104,7 @@ def load_txt(path: Path, data: bytes) -> ParsedDocument:
 
 
 _ARABIC_WORD_RE = re.compile(r"[\u0600-\u06FF]+")
-_PDF_HEADING_RE = re.compile(r"^((ال)?(فصل|باب|قسم|مقدمة|خاتمة)\b|(chapter|section|part)\s+\w+)", re.I)
+_PDF_HEADING_RE = re.compile(r"^((ال)?(فصل|باب|قسم)\s+[^:\s]|(ال)?(مقدمة|خاتمة)\b|(chapter|section|part)\s+\w+)", re.I)
 
 
 def arabic_garble_score(text: str) -> float:

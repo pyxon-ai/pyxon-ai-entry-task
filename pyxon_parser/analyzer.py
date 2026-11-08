@@ -24,7 +24,8 @@ from .text import content_tokens, count_tokens, split_sentences, top_keywords
 _HEADING_PATTERNS = [
     re.compile(r"^#{1,6}\s+\S"),  # markdown
     re.compile(r"^(chapter|section|part|appendix)\s+[\w\dIVXLC]+\b", re.I),
-    re.compile(r"^(ال)?(فصل|باب|قسم|جزء|مبحث|مقدمة|خاتمة)\b"),
+    # "الفصل الأول" / "الباب 2" (the keyword must be followed by a word, so a form field like "القسم: المالية" is not a heading)
+    re.compile(r"^(ال)?(فصل|باب|قسم|جزء|مبحث)\s+[^:：\s]|^(ال)?(مقدمة|خاتمة)\b"),
     re.compile(r"^(\d+(\.\d+)*|[IVXLC]+)[.)]?\s+\S"),  # "2.1 Title", "IV. Title"
 ]
 _KV_RE = re.compile(r"^[^:：]{1,40}[:：]\s*\S")
@@ -127,6 +128,21 @@ def extractive_summary(text: str, max_sentences: int = 3) -> str:
     return " ".join(s for _, _, s in sorted(best, key=lambda x: x[1]))
 
 
+def form_summary(blocks: list[Block], max_fields: int = 8) -> str:
+    """Describe a form/record document by its fields instead of stitching sentences from different records."""
+    fields: dict[str, int] = {}
+    for b in blocks:
+        m = re.match(r"^([^:：]{1,40})[:：]", b.text)
+        if m:
+            key = m.group(1).strip()
+            fields[key] = fields.get(key, 0) + 1
+    if not fields:
+        return ""
+    n_records = max(fields.values())
+    names = ", ".join(sorted(fields, key=lambda k: -fields[k])[:max_fields])
+    return f"Structured document with about {n_records} records. Fields: {names}."
+
+
 def analyze(doc: ParsedDocument) -> tuple[DocumentAnalysis, list[Section]]:
     text = doc.text
     sections = split_sections(doc)
@@ -192,7 +208,7 @@ def analyze(doc: ParsedDocument) -> tuple[DocumentAnalysis, list[Section]]:
         kv_ratio=round(kv_ratio, 3),
         doc_type=doc_type,
         keywords=top_keywords(text, k=12),
-        summary=extractive_summary(text),
+        summary=form_summary(body_blocks) if kv_ratio > 0.3 else extractive_summary("\n\n".join(b.text for b in body_blocks)),
         strategy=strategy,
         strategy_score=round(score, 2),
         reasons=reasons,
