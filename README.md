@@ -1,6 +1,6 @@
 # Pyxon AI — Arabic-aware Document Parser for RAG
 
-My solution to the [Pyxon AI junior engineer entry task](TASK.md): a document parser that reads **PDF, DOCX, DOC and TXT**, works out the document's structure, **chooses fixed or dynamic chunking on its own**, and stores the results in a **vector DB (Chroma)** and a **SQL DB (SQLite)**. It also adds a knowledge graph, a RAPTOR summary tree, hybrid retrieval and a RAG layer. Arabic is fully supported, including **harakat/tashkeel**. Diacritics are kept exactly as written in storage, and matching ignores them.
+My solution to the [Pyxon AI junior engineer entry task](TASK.md): a document parser that reads **PDF, DOCX, DOC and TXT**, works out the document's structure, **chooses fixed or dynamic chunking on its own**, and stores the results in a **vector DB (Chroma)** and a **SQL DB (SQLite)**. It also adds a term co-occurrence graph, a RAPTOR-style summary tree, hybrid retrieval and a RAG layer. Arabic text, including **harakat/tashkeel**, is kept exactly as written in storage while matching ignores diacritics: lossless for TXT/DOCX/DOC, and for text-based PDFs as good as the PDF's own text layer allows (89% of marks on the sample PDF, 100% of letters).
 
 ```
              ┌──────────────┐   ┌────────────────┐   ┌──────────────────────┐
@@ -27,27 +27,28 @@ My solution to the [Pyxon AI junior engineer entry task](TASK.md): a document pa
 | Requirement | How it is done |
 |---|---|
 | PDF | **PyMuPDF** for layout blocks and font sizes, so headings are detected from font size. **pypdf** is a second extractor. For each page, the loader keeps whichever output is *less garbled* (`arabic_garble_score`), because some Arabic PDFs only extract in logical order with one of the two. Arabic presentation forms (U+FB50–U+FEFF) are NFKC-normalized back to base letters. |
-| DOCX | python-docx with **heading styles** (Heading 1–n / Title) as structure, plus tables flattened row by row |
+| DOCX | python-docx with **heading styles** (Heading 1–n / Title) as structure. Paragraphs and tables are read **in document order**, so a table stays under its heading; each table row becomes one sentence with its column headers (`Item: Alpha, Price: 17 dinars.`) |
 | DOC | Converted headlessly with LibreOffice (`soffice --convert-to docx`), then parsed as DOCX |
-| TXT | Encoding detection: UTF-8 (with or without BOM), UTF-16, **Windows-1256**, ISO-8859-6 |
+| TXT | BOM → UTF-8 → legacy Arabic codecs. Windows-1256 accepts almost any byte, so **Windows-1256 and ISO-8859-6 are both tried and the more plausible Arabic wins** (accented Latin letters inside Arabic words reveal the wrong codec). `load_document(path, encoding=...)` overrides detection |
 | Content understanding | `analyzer.py` detects headings (styles, font size, markdown, `Chapter/Section`, `الفصل/الباب/القسم`, numbering, short-title heuristics), paragraph and section length variance, `key: value` form fields, language, text direction, diacritic density, TF-IDF keywords and an extractive summary |
 | Strategy choice | A transparent weighted score (headings +, uneven sections +, varied paragraphs +, form fields −, very short −). The UI and DB store the *reasons* (e.g. "5 headings detected → structure-aware splitting keeps sections intact") |
 | Fixed chunking | ~120-word windows that only cut at sentence boundaries, with ~20 words of sentence overlap |
-| Dynamic chunking | Sections first, so a chunk never spans two chapters. Long sections are split where meaning shifts (similarity between neighbouring sentence windows drops below a percentile of the section). Tiny fragments are merged into a neighbour |
-| Vector DB | **Chroma** (persistent, cosine HNSW) with chunk metadata (doc id, level, section, strategy, language) |
+| Dynamic chunking | Sections first: a chunk **never spans two sections** and **never exceeds `max_size` words**. Long sections are split where meaning shifts (similarity between neighbouring sentence windows drops below a percentile of the section); too few sentences to measure → size-only packing. Small fragments merge only into a chunk of the same section; a short section keeps its own heading. Each chunk keeps the page of its first sentence |
+| Vector DB | **Chroma** (persistent, cosine HNSW) with chunk metadata. **One collection per embedding model** (name + recorded model and dimension); opening an index with a new model re-embeds the chunk texts stored in SQLite automatically (`parser.reindex()`), so vectors from different models never mix. In-memory parsers get a private UUID collection |
 | SQL DB | **SQLite**: `documents`, `sections`, `chunks`, `chunks_fts` (FTS5/BM25), `terms`, `term_edges` |
+| Consistency | Ingestion is **atomic across both stores**: embeddings and summaries are computed first, SQL rows are written in one transaction that commits only after the vectors are stored, and a failure rolls SQL back and removes partial vectors. Re-ingesting a file replaces the old version only once the new one is fully written |
 | Arabic | Original text is always stored. A normalized form (no harakat or tatweel; unified أ/إ/آ/ٱ→ا, ى→ي, ة→ه, ؤ/ئ; Arabic-Indic digits; light ال-stemming) is used for embeddings, BM25 and the graph. RTL text is rendered with `dir="auto"` in the demo |
-| Graph RAG | Concept co-occurrence graph per document (TF-IDF key terms per chunk, PageRank centrality). The retriever expands query terms one hop |
-| RAPTOR | Leaf embeddings are clustered with k-means, each cluster is summarized (LLM if configured, extractive otherwise), and the process repeats up to a root. Summary nodes are stored as `level ≥ 1` for "collapsed tree" retrieval |
+| Graph RAG (lightweight) | A **term co-occurrence graph** per document: TF-IDF key terms per chunk are nodes, co-occurrence in a chunk is an edge, PageRank gives key concepts. At query time, query terms are expanded **one hop** to related terms. No entity extraction or community summaries |
+| RAPTOR-style tree | Leaf embeddings are clustered with **k-means**, each cluster gets an **extractive** summary (or an LLM summary with `PYXON_LLM_SUMMARIES=1` and an API key), and the process repeats up to a root. Summary nodes are stored as `level ≥ 1` for "collapsed tree" retrieval |
 | Hybrid retrieval | Vector + BM25 + graph rankings fused with weighted **Reciprocal Rank Fusion**. Every hit shows which retrievers found it and at what rank |
-| RAG integration | `RAGPipeline.ask()` sends structured questions ("how many documents…", "كم عدد الملفات") to **read-only SQL**. Everything else goes through retrieval, a cited prompt and an LLM (Anthropic or any OpenAI-compatible API via env vars), with an extractive answer as fallback when no key is set |
+| RAG integration | `RAGPipeline.ask()` sends corpus-metadata questions to **SQL** through a small intent parser (`query_router.py`): a question goes to SQL only if *every* content word is metadata vocabulary (documents, chunks, counts, languages, file types, chunking strategy, diacritics), so "What is the marketing strategy for Zephyr?" still goes to search. Filters and document scope become a **parameterised** SELECT, and SQLite enforces read-only access with an authorizer. Everything else goes through retrieval, a cited prompt and an LLM (Anthropic or any OpenAI-compatible API via env vars). Without a key, an extractive answer quotes only sentences that cover the question well, or says it could not find the answer |
 
 ## Quick start
 
 ```bash
-pip install -r requirements.txt          # Python 3.10+
+pip install -r requirements-dev.txt -c constraints.txt   # Python 3.11+; constraints = the tested versions
 python app.py                            # demo on http://localhost:7860 (sample docs auto-load)
-pytest                                   # 78 tests (incl. held-out documents and broken files)
+pytest                                   # 112 tests (unit, held-out documents, broken files, review regressions)
 python -m benchmarks.run_benchmark       # writes benchmarks/results/results.{md,json}
 ```
 
@@ -73,13 +74,14 @@ Configuration (environment variables):
 |---|---|---|
 | `PYXON_EMBEDDER` | `auto` | `hashing` (lexical, offline), `fastembed` (neural multilingual MiniLM via ONNX: `pip install fastembed`, ~220 MB model download, recommended for paraphrase and cross-language questions), or any sentence-transformers model name. `auto` tries `intfloat/multilingual-e5-small` through sentence-transformers and falls back to `hashing` |
 | `PYXON_DATA_DIR` | `./data` | Where the demo keeps SQLite and Chroma |
-| `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` | none | Turns on LLM answers. `PYXON_LLM_MODEL` and `OPENAI_BASE_URL` are optional |
+| `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` | none | Turns on LLM answers. `PYXON_LLM_MODEL` and `OPENAI_BASE_URL` are optional. (The API clients are implemented but were not exercised end to end with a real key for this submission.) |
+| `PYXON_LLM_SUMMARIES` | `0` | `1` makes the RAPTOR tree use the LLM for cluster summaries (needs a key) |
 
 ## Live demo
 
 **🔗 https://pyxon-document-parser-1n4n.onrender.com** (free tier: the first load after a quiet period takes about a minute while the server wakes up)
 
-The Gradio app (`app.py`) has six tabs: parse (upload, analysis, chunks, RAPTOR tree), search (pick a retriever), ask (RAG), SQL explorer, library and benchmark results. The sample corpus loads at startup, and the Arabic files with harakat are one click away.
+The Gradio app (`app.py`) has six tabs: parse (upload, analysis, chunks, RAPTOR tree), search (pick a retriever), ask (RAG), SQL explorer, library and benchmark results. The sample corpus loads at startup, and the Arabic files with harakat are one click away. It is a **shared** demo: every visitor sees the same index, SQL tab and delete button, so upload only sample or public documents. It runs the hashing embedder, because the free instance has 512 MB of RAM.
 
 **Deploying (free) on Render:** New → Web Service → connect this repository → Language **Docker** → Instance type **Free**. The included `Dockerfile` installs LibreOffice (for `.doc` files) and starts the app on the port Render provides. On the free tier the service sleeps after 15 minutes without traffic, so the first request after that takes about a minute while it wakes up. The same `Dockerfile` works on Railway, Fly.io, Google Cloud Run or a Docker Space on Hugging Face.
 
@@ -88,18 +90,20 @@ The Gradio app (`app.py`) has six tabs: parse (upload, analysis, chunks, RAPTOR 
 `benchmarks/run_benchmark.py` runs five sections. Full output is in [`benchmarks/results/results.md`](benchmarks/results/results.md). The headline numbers below come from the **offline hashing embedder** on a 2-vCPU container:
 
 * **Strategy selection:** 9/9 files get the expected strategy (8/8 when LibreOffice is not installed and the `.doc` sample is skipped). This holds across formats: the same content as DOCX, PDF and TXT gets the same decision.
-* **Retrieval** (29 queries: 13 English, 15 Arabic, 1 mixed, including vocalized and bare variants of the same question):
+* **Retrieval** (29 queries: 13 English, 15 Arabic, 1 mixed, including vocalized and bare variants of the same question). nDCG uses every relevant chunk in the index as the ideal, not only the retrieved ones:
 
   | Corpus | Retriever | Hit@1 | Hit@3 | MRR@5 | nDCG@5 |
   |---|---|---|---|---|---|
-  | TXT/DOCX/DOC | vector | 0.90 | 1.00 | 0.95 | 0.96 |
-  | | keyword (BM25) | 1.00 | 1.00 | 1.00 | 1.00 |
-  | | graph alone | 0.48 | 0.48 | 0.48 | 0.48 |
-  | | **hybrid** | **0.97** | **1.00** | **0.98** | **0.99** |
-  | PDF | **hybrid** | **0.97** | **1.00** | **0.98** | **0.99** |
-* **Chunking quality:** dynamic chunking has a **0%** section-crossing rate, against 41% for fixed windows on the same documents. 100% of chunks end on a sentence boundary. The auto-selected strategy has the best intra-chunk coherence.
-* **Performance:** 0.05–0.3 s to ingest each sample (0.76 s for the Arabic PDF, which runs two extractors). Peak memory is under 3 MB per document. Hybrid query p50 is about 3 ms. At **100 documents / 600 chunks**, ingest runs at about 40 docs/s and hybrid query p50 is about 10 ms.
-* **Arabic:** all 1,298 harakat survive end to end (source = SQL = Chroma, for both TXT and DOCX). Vocalized and bare queries return the same top-1 (3/3 pairs, 4/4 single words). Normalization passes 10/10 cases, cp1256 and UTF-16 decode correctly, and the Arabic PDF's bare text matches the source 100%.
+  | TXT/DOCX/DOC | vector | 0.93 | 1.00 | 0.97 | 0.96 |
+  | | keyword (BM25) | 1.00 | 1.00 | 1.00 | 0.99 |
+  | | graph alone | 0.52 | 0.52 | 0.52 | 0.52 |
+  | | **hybrid** | **0.97** | **1.00** | **0.98** | **0.97** |
+  | PDF | **hybrid** | **0.97** | **1.00** | **0.98** | **0.97** |
+* **Chunking quality:** dynamic chunking has a **0%** section-crossing rate, against 41% for fixed windows on the same documents. Every chunk ends exactly where a complete source sentence ends (the metric compares against the source sentences, so a forced cut inside a sentence counts as a failure; the tests check this). The coherence gap (within-chunk minus across-boundary similarity) is +0.14 for dynamic and −0.03 for fixed.
+* **Performance:** 0.05–0.35 s to ingest each sample (about 0.8 s for the Arabic PDF, which runs two extractors). Python allocations stay under 3 MB per document; the whole process (Python, Chroma, models) uses about 310 MB RSS. Hybrid query p50 is about 3.4 ms. At **100 documents / 550 chunks**, ingest runs at about 42 docs/s and hybrid query p50 is about 7 ms.
+* **Arabic:** all 1,298 harakat survive end to end (source = SQL = Chroma, for both TXT and DOCX). Vocalized and bare queries return the same top-1 (3/3 pairs, 4/4 single words). Normalization passes 10/10 cases, UTF-8, UTF-16, Windows-1256 and ISO-8859-6 all round-trip, and the Arabic PDF's bare text matches the source 100%.
+
+All benchmark runs use isolated stores: every in-memory parser gets its own UUID collection, so no run can see another's vectors.
 
 How to read these numbers: the corpus is small (4 documents per corpus, by design so that relevance can be labelled exactly), so retrieval scores are near their ceiling. The hashing embedder is lexical, which is why BM25 is so strong on its own. The benchmark is built so that switching to a neural embedder (`--embedder intfloat/multilingual-e5-small`) or adding harder query sets needs no code changes.
 
@@ -115,15 +119,36 @@ python -m benchmarks.heldout.run_heldout     # writes benchmarks/heldout/results
 | Check | Hashing embedder (default, offline) | Neural embedder (`PYXON_EMBEDDER=fastembed`) |
 |---|---|---|
 | Strategy selection | **8/8** | **8/8** |
-| Questions sharing words with the answer (n=20) | Hit@1 0.90 · Hit@3 1.00 | Hit@1 0.90 · Hit@3 1.00 |
+| Questions sharing words with the answer (n=20) | Hit@1 0.95 · Hit@3 1.00 | Hit@1 0.90 · Hit@3 1.00 |
 | Paraphrased questions (n=7) | Hit@1 0.29 · Hit@3 0.29 | Hit@1 0.43 · **Hit@3 1.00** |
 | English question about an Arabic document (n=1) | miss | **rank 1** |
-| All 28 questions | Hit@1 0.71 · Hit@3 0.79 · MRR 0.75 | Hit@1 0.79 · **Hit@3 1.00** · MRR 0.88 |
+| All 28 questions | Hit@1 0.75 · Hit@3 0.79 · MRR 0.77 | Hit@1 0.79 · **Hit@3 1.00** · MRR 0.88 |
 | Broken files | **7/7** handled | **7/7** handled |
 
-Broken files get a clear `DocumentLoadError` or `EmptyDocumentError` ("scanned PDF, needs OCR"), and nothing is half-indexed. The neural column was measured on a Windows laptop with `paraphrase-multilingual-MiniLM-L12-v2` (quantized ONNX, 235 MB download); the hashing column gives identical numbers on Linux and Windows.
+Broken files get a clear `DocumentLoadError` or `EmptyDocumentError` ("scanned PDF, needs OCR"), and nothing is half-indexed. The neural column was measured on a Windows laptop with `paraphrase-multilingual-MiniLM-L12-v2` (quantized ONNX, 235 MB download) at commit `5c89102`, and reproduced independently; the hashing column is from the current code (the DOCX table rows now carry their column headers, which lifted one exact-wording query to rank 1).
+
+Caveat: these documents helped find bugs that are now fixed, so they are no longer a fully untouched test set, and 7 paraphrases plus 1 cross-language question are too few to prove broad generalisation. A frozen, larger set with distractors and unanswerable questions is the next step.
 
 Running it on unseen documents found three real bugs, which are now fixed and covered by tests: legal articles (`المادة 3: …`) were mistaken for form fields, damaged files crashed with library errors, and image-only PDFs were "indexed" with zero chunks. It also shows the main limit of the offline hashing embedder: it matches words, not meaning. Switching to the neural embedder lifts paraphrased questions from Hit@3 0.29 to 1.00 and answers the cross-language question, with no loss on exact-wording questions, because hybrid retrieval still uses BM25 for exact terms and the neural vectors for meaning.
+
+## Independent review and fixes
+
+An independent review of PR #19 scored it 76/100 and gave 18 reproducible checks; **4 passed**. Every finding below is fixed and covered by a regression test in `tests/test_review_fixes.py`; the reviewer's own script now passes **18/18**.
+
+| Finding | Fix |
+|---|---|
+| New in-memory parsers could inherit old vectors (collection named after `id(self)`) | UUID collection per in-memory parser, `close()` / context manager; tested over 40 create/destroy cycles |
+| A failed vector write left SQL rows without vectors; a failed replacement deleted the original | One SQL transaction committed only after the vector write; compensation on failure; old version removed only after the new one is complete |
+| Dynamic chunking moved a short section into the next one and could exceed `max_size` | Merges stay inside a section; size-only packing for 1–2 units; pages kept per sentence |
+| DOCX tables moved to the end of the document | Body read in order; table rows carry column headers |
+| SQL routing: "Which documents are Arabic?" listed everything, "marketing strategy" went to SQL | Metadata-vocabulary intent parser with filters, counts and document scope; parameterised SQL |
+| Switching embedding model on an existing index crashed search | One collection per model; automatic re-embedding from SQLite |
+| Benchmark: boundary metric counted forced cuts as clean; nDCG ideal used retrieved hits only | Boundary checked against source sentences; ideal DCG from all relevant chunks; process RSS reported |
+| ISO-8859-6 text decoded as Windows-1256 mojibake | Plausibility-scored codec choice + `encoding=` override |
+| Heading-only files indexed nothing silently | Clear `EmptyDocumentError` |
+| `WITH … DELETE … RETURNING` passed the read-only prefix check | SQLite authorizer allows only read actions |
+| Extractive answers appended unrelated sentences | Rarity-weighted coverage, relative cut-off, "not found" below a minimum |
+| Shared demo data, no CI, loose dependency bounds | Shared-demo banner; GitHub Actions (tests on Python 3.11/3.12, held-out run, Docker build); `constraints.txt` with tested versions; PyMuPDF ≥ 2.1 (1.26 segfaulted in the review environment) |
 
 ## Project layout
 
@@ -133,8 +158,9 @@ pyxon_parser/
   loaders.py     PDF (PyMuPDF + pypdf), DOCX, DOC (LibreOffice), TXT (encoding detection)
   analyzer.py    structure + content analysis, strategy scoring
   chunking.py    FixedChunker, DynamicChunker
-  embeddings.py  multilingual sentence-transformers or hashing fallback
-  storage.py     SQLStore (SQLite + FTS5), VectorStore (Chroma)
+  embeddings.py  hashing (offline), fastembed (ONNX) or sentence-transformers
+  storage.py     SQLStore (SQLite + FTS5, transactions, read-only guard), VectorStore (Chroma, per-model collections)
+  query_router.py  metadata questions -> parameterised SQL
   graph.py       concept graph (Graph RAG)
   raptor.py      hierarchical summary tree
   retrieval.py   hybrid retriever with RRF
@@ -144,7 +170,8 @@ pyxon_parser/
 app.py           Gradio demo
 benchmarks/      queries.json, run_benchmark.py, results/, heldout/ (unseen-document evaluation)
 samples/         sample corpus (EN/AR, vocalized Arabic, forms) + build script
-tests/           pytest suite
+tests/           pytest suite (112 tests)
+.github/         CI: tests on Python 3.11/3.12, held-out evaluation, Docker build
 ```
 
 ## Design decisions and trade-offs
@@ -155,19 +182,21 @@ tests/           pytest suite
 * **SQLite FTS5 for BM25** instead of a separate keyword index: one less service, and it stays in the same database as the metadata.
 * **RRF fusion** instead of tuned score blending: robust to the very different score scales of cosine similarity and BM25.
 * **Two PDF extractors** cost about 0.5 s per Arabic PDF, but they make Arabic PDFs readable when one extractor returns visual-order or broken text.
+* **SQLite is the source of truth, Chroma is an index.** Chunk texts live in SQLite, so the vector index can always be rebuilt for a new model, and a write only becomes visible when both stores agree.
 
 ## Questions & assumptions
 
 * *How is "intelligent" strategy selection judged?* → I assumed the decision must be automatic **and explainable**, and that a user can override it (`strategy=` / UI radio button).
 * *Which embedding model?* → None was specified. I made the model pluggable, defaulted to multilingual-e5-small, and kept an offline fallback so the demo can't break.
 * *Must an LLM be called?* → "Designed to integrate with a RAG system" suggested the LLM is pluggable. Answers use Anthropic or OpenAI when a key is present and extractive answers otherwise. No key is committed.
-* *What counts as "structured queries"?* → Questions about the corpus itself (counts, languages, strategies, chunk stats) go to read-only SQL through intent rules. Arbitrary SELECTs can be run in the demo's SQL tab.
+* *What counts as "structured queries"?* → Questions about the corpus itself (counts, languages, file types, strategies, chunk stats, diacritics) go to read-only SQL through the intent parser; anything mentioning document content goes to retrieval. Arbitrary SELECTs can be run in the demo's SQL tab.
 * *Scanned (image-only) PDFs?* → Assumed out of scope. OCR (e.g. Tesseract `ara`) would plug into `load_pdf`.
 
 ## Limitations and future work
 
 * Shadda inside lam-alef ligatures can be lost in some PDFs (89% of harakat recovered from the sample PDF; the bare text is 100% correct). DOCX and TXT are lossless.
-* The scanned-PDF/OCR path, table structure in PDFs and image captions are not implemented.
+* The scanned-PDF/OCR path (scanned PDFs are rejected with a clear OCR message), table structure in PDFs and image captions are not implemented.
 * Heading detection in plain TXT is heuristic. An LLM-based structure pass could be added for messy documents.
 * With the default offline embedder, paraphrased questions (Hit@3 0.29 on the held-out set) and cross-language questions are weak; `PYXON_EMBEDDER=fastembed` fixes both (Hit@3 1.00). The free Render instance (512 MB RAM) runs the hashing embedder; a paid instance or a machine with ~1 GB RAM can run the neural one.
+* The public demo is shared and uses the hashing embedder; per-session isolation and a neural model need a larger instance.
 * With more data: tune the RRF weights and dynamic-chunk thresholds on a labelled set, add a cross-encoder re-ranker (e.g. multilingual BGE reranker) and an Arabic-specific embedder (e.g. a CAMeLBERT-based model).

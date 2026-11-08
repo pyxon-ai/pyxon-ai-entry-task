@@ -24,7 +24,10 @@ ROOT = Path(__file__).parent
 SAMPLES = ROOT / "samples"
 DEFAULT_SAMPLES = ["coffee_history.docx", "inspection_report.txt", "water_ar.txt", "employee_form_ar.docx"]
 
-parser = PyxonParser(data_dir=os.getenv("PYXON_DATA_DIR", ROOT / "data"))
+parser = PyxonParser(
+    data_dir=os.getenv("PYXON_DATA_DIR", ROOT / "data"),
+    use_llm_summaries=os.getenv("PYXON_LLM_SUMMARIES", "0") == "1",
+)
 
 CSS = """
 .chunk {border:1px solid var(--border-color-primary); border-radius:8px; padding:10px 12px; margin:8px 0;
@@ -111,7 +114,8 @@ def ask(question, k):
     ans = parser.ask(question, k=int(k))
     if ans.route == "sql":
         table = pd.DataFrame(ans.rows).to_markdown(index=False) if ans.rows else "(no rows)"
-        return f"**Routed to SQL**\n\n```sql\n{ans.sql}\n```\n\n{table}", ""
+        params = f"\n\nParameters: `{ans.params}`" if ans.params else ""
+        return f"**Routed to SQL** ({ans.answer})\n\n```sql\n{ans.sql}\n```{params}\n\n{table}", ""
     head = "**Answer** (LLM)" if ans.llm_used else "**Answer** (extractive — set ANTHROPIC_API_KEY or OPENAI_API_KEY for LLM answers)"
     ctx = "".join(_chunk_html(c.text, f"[{i}] <b>{c.filename}</b> · level {c.level}")
                   for i, c in enumerate(ans.contexts, 1))
@@ -148,8 +152,11 @@ with gr.Blocks(title="Pyxon AI Document Parser") as demo:
         "# Pyxon AI — Document Parser for RAG\n"
         "PDF / DOCX / DOC / TXT → content analysis → automatic **fixed** or **dynamic** chunking → "
         "**Chroma** vectors + **SQLite** metadata, knowledge graph and RAPTOR tree → hybrid retrieval and RAG. "
-        "Full Arabic support: diacritics are preserved in storage and ignored for matching.\n\n"
-        f"Embedder: `{parser.embedder.name}` · LLM: `{parser.rag.llm.model if parser.rag.llm else 'none (extractive answers)'}`"
+        "Arabic support: diacritics are preserved in storage and ignored for matching "
+        "(lossless for TXT/DOCX; text-based PDFs recover most marks).\n\n"
+        f"Embedder: `{parser.embedder.name}` · LLM: `{parser.rag.llm.model if parser.rag.llm else 'none (extractive answers)'}`\n\n"
+        "> ⚠️ **Shared public demo.** Every visitor sees the same index: uploaded files, the SQL tab and "
+        "deletion are shared. Please upload only sample or public documents."
     )
     status = gr.Markdown()
     with gr.Tab("1 · Parse documents"):

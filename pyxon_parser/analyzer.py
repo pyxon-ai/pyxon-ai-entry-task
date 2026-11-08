@@ -150,7 +150,9 @@ def analyze(doc: ParsedDocument) -> tuple[DocumentAnalysis, list[Section]]:
     body_blocks = [b for s in sections for b in s.blocks]
     para_lens = [count_tokens(b.text) for b in body_blocks] or [0]
     section_lens = [count_tokens(s.text) for s in sections if s.blocks]
-    kv_ratio = sum(bool(_KV_RE.match(b.text)) for b in body_blocks) / max(len(body_blocks), 1)
+    # tables render as "Header: value" rows; they are not evidence of a form document
+    text_blocks = [b for b in body_blocks if not b.is_table] or body_blocks
+    kv_ratio = sum(bool(_KV_RE.match(b.text)) for b in text_blocks) / max(len(text_blocks), 1)
     para_cv, section_cv = _cv(para_lens), _cv(section_lens)
     n_tokens = count_tokens(text)
 

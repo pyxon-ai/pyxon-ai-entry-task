@@ -31,6 +31,7 @@ class Block:
     is_heading: bool = False
     heading_level: int = 0
     page: int | None = None
+    is_table: bool = False
 
 
 @dataclass
@@ -106,22 +107,49 @@ def _split_paragraphs(text: str, page: int | None = None) -> list[Block]:
     return blocks
 
 
-def decode_text(data: bytes) -> tuple[str, str]:
-    """Decode TXT bytes, trying the encodings Arabic files are usually saved in."""
+_LATIN1_LETTERS = re.compile("[\u00C0-\u00FF]")
+
+
+def _arabic_plausibility(text: str) -> float:
+    """Higher = more like real Arabic text. Accented Latin letters inside Arabic words are the
+    signature of a wrong single-byte codec (e.g. ISO-8859-6 bytes read as Windows-1256)."""
+    arabic = len(re.findall("[\u0621-\u064A]", text))
+    latin1 = len(_LATIN1_LETTERS.findall(text))
+    return arabic - 5 * latin1
+
+
+def decode_text(data: bytes, encoding: str | None = None) -> tuple[str, str]:
+    """Decode TXT bytes. Pass ``encoding`` to skip detection.
+
+    BOMs decide first; valid UTF-8 wins next (random single-byte text is almost never valid
+    UTF-8). Otherwise every legacy Arabic codec that decodes cleanly is scored for plausibility,
+    because Windows-1256 accepts nearly any byte and would silently mis-decode ISO-8859-6.
+    """
+    if encoding:
+        return data.decode(encoding), encoding
     if data.startswith(b"\xef\xbb\xbf"):
         return data[3:].decode("utf-8"), "utf-8-sig"
     if data.startswith((b"\xff\xfe", b"\xfe\xff")):
         return data.decode("utf-16"), "utf-16"
-    for enc in ("utf-8", "cp1256", "iso-8859-6"):
+    try:
+        return data.decode("utf-8"), "utf-8"
+    except UnicodeDecodeError:
+        pass
+    candidates = []
+    for enc in ("cp1256", "iso-8859-6"):
         try:
-            return data.decode(enc), enc
+            text = data.decode(enc)
         except UnicodeDecodeError:
             continue
+        candidates.append((_arabic_plausibility(text), enc, text))
+    if candidates:
+        _, enc, text = max(candidates, key=lambda c: c[0])
+        return text, enc
     return data.decode("utf-8", errors="replace"), "utf-8 (lossy)"
 
 
-def load_txt(path: Path, data: bytes) -> ParsedDocument:
-    text, encoding = decode_text(data)
+def load_txt(path: Path, data: bytes, encoding: str | None = None) -> ParsedDocument:
+    text, encoding = decode_text(data, encoding)
     return ParsedDocument(
         filename=path.name,
         file_type="txt",
@@ -265,31 +293,63 @@ def load_pdf(path: Path, data: bytes) -> ParsedDocument:
     )
 
 
+def _table_to_text(table) -> str:
+    """One sentence per row, each value labelled with its column header.
+
+    "Leave type: Annual, Days per year: 21, Paid: Yes." keeps row boundaries (the sentence
+    splitter cuts on the full stop) and lets a question about a single cell match its header.
+    """
+    rows = []
+    for row in table.rows:
+        cells, seen = [], set()
+        for c in row.cells:  # merged cells repeat; keep each once
+            if id(c._tc) not in seen:
+                seen.add(id(c._tc))
+                cells.append(c.text.strip())
+        if any(cells):
+            rows.append(cells)
+    if not rows:
+        return ""
+    header = rows[0] if len(rows) > 1 and all(rows[0]) else None
+    out = []
+    for cells in rows[1:] if header else rows:
+        if header and len(cells) == len(header):
+            out.append(", ".join(f"{h}: {v}" for h, v in zip(header, cells) if v) + ".")
+        else:
+            out.append(" | ".join(v for v in cells if v) + ".")
+    return " ".join(out)
+
+
 def load_docx(path: Path, data: bytes) -> ParsedDocument:
     import docx
 
+    from docx.table import Table
+    from docx.text.paragraph import Paragraph
+
     document = docx.Document(str(path))
     blocks: list[Block] = []
-    for para in document.paragraphs:
-        text = para.text.strip()
-        if not text:
-            continue
-        style = (para.style.name or "").lower() if para.style is not None else ""
-        level = 0
-        if style.startswith("heading"):
-            try:
-                level = int(style.split()[-1])
-            except ValueError:
+    # Walk the body in document order so a table stays under the heading it belongs to.
+    for el in document.element.body.iterchildren():
+        tag = el.tag.rsplit("}", 1)[-1]
+        if tag == "p":
+            para = Paragraph(el, document)
+            text = para.text.strip()
+            if not text:
+                continue
+            style = (para.style.name or "").lower() if para.style is not None else ""
+            level = 0
+            if style.startswith("heading"):
+                try:
+                    level = int(style.split()[-1])
+                except ValueError:
+                    level = 1
+            elif style == "title":
                 level = 1
-        elif style == "title":
-            level = 1
-        blocks.append(Block(text=text, is_heading=level > 0, heading_level=level))
-    # Tables are flattened row by row so their content is still searchable.
-    for table in document.tables:
-        for row in table.rows:
-            cells = [c.text.strip() for c in row.cells if c.text.strip()]
-            if cells:
-                blocks.append(Block(text=" | ".join(cells)))
+            blocks.append(Block(text=text, is_heading=level > 0, heading_level=level))
+        elif tag == "tbl":
+            table_text = _table_to_text(Table(el, document))
+            if table_text:
+                blocks.append(Block(text=table_text, is_table=True))
     props = document.core_properties
     meta = {k: v for k, v in {"title": props.title, "author": props.author}.items() if v}
     return ParsedDocument(
@@ -333,8 +393,8 @@ def load_doc(path: Path, data: bytes) -> ParsedDocument:
     return parsed
 
 
-def load_document(path: str | Path) -> ParsedDocument:
-    """Dispatch on file extension."""
+def load_document(path: str | Path, encoding: str | None = None) -> ParsedDocument:
+    """Dispatch on file extension. ``encoding`` overrides detection for TXT/MD files."""
     path = Path(path)
     ext = path.suffix.lower()
     if ext not in SUPPORTED_EXTENSIONS:
@@ -350,7 +410,7 @@ def load_document(path: str | Path) -> ParsedDocument:
         ".md": load_txt,
     }[ext]
     try:
-        parsed = loader(path, data)
+        parsed = loader(path, data, encoding) if ext in (".txt", ".md") else loader(path, data)
     except (UnsupportedFileType, EmptyDocumentError):
         raise
     except Exception as exc:  # damaged file, wrong extension, encrypted PDF ...

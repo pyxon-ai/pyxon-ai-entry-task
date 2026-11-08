@@ -22,10 +22,10 @@ Embedder: `hashing-char2-5+word1-2-2048` · Python 3.13.18 · 2026-11-08
 
 | Retriever | Hit@1 | Hit@3 | Hit@5 | MRR@5 | nDCG@5 | Misses |
 |---|---|---|---|---|---|---|
-| vector | 0.93 | 1.00 | 1.00 | 0.97 | 0.97 | — |
-| keyword | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 | — |
+| vector | 0.93 | 1.00 | 1.00 | 0.97 | 0.96 | — |
+| keyword | 1.00 | 1.00 | 1.00 | 1.00 | 0.99 | — |
 | graph | 0.52 | 0.52 | 0.52 | 0.52 | 0.52 | en-1, en-4, en-6, en-9, ar-1, ar-1b, ar-3, ar-5, ar-5b, ar-7, ar-9, ar-10, ar-11, mix-1 |
-| hybrid | 0.97 | 1.00 | 1.00 | 0.98 | 0.99 | — |
+| hybrid | 0.97 | 1.00 | 1.00 | 0.98 | 0.97 | — |
 
 Hybrid Hit@3 by query language: ar 1.00 (n=15), en 1.00 (n=13), mixed 1.00 (n=1)
 
@@ -33,16 +33,16 @@ Hybrid Hit@3 by query language: ar 1.00 (n=15), en 1.00 (n=13), mixed 1.00 (n=1)
 
 | Retriever | Hit@1 | Hit@3 | Hit@5 | MRR@5 | nDCG@5 | Misses |
 |---|---|---|---|---|---|---|
-| vector | 0.90 | 1.00 | 1.00 | 0.95 | 0.96 | — |
-| keyword | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 | — |
+| vector | 0.90 | 1.00 | 1.00 | 0.95 | 0.95 | — |
+| keyword | 1.00 | 1.00 | 1.00 | 1.00 | 0.99 | — |
 | graph | 0.52 | 0.52 | 0.52 | 0.52 | 0.52 | en-1, en-4, en-6, en-9, ar-1, ar-1b, ar-3, ar-5, ar-5b, ar-7, ar-9, ar-10, ar-11, mix-1 |
-| hybrid | 0.97 | 1.00 | 1.00 | 0.98 | 0.99 | — |
+| hybrid | 0.97 | 1.00 | 1.00 | 0.98 | 0.97 | — |
 
 Hybrid Hit@3 by query language: ar 1.00 (n=15), en 1.00 (n=13), mixed 1.00 (n=1)
 
 ## 3. Chunking quality
 
-| Group | Section-crossing rate ↓ | Clean boundary rate ↑ | Intra-chunk coherence ↑ | Coherence gap ↑ | Size CV |
+| Group | Section-crossing rate ↓ | Ends on a complete source sentence ↑ | Intra-chunk coherence ↑ | Coherence gap ↑ | Size CV |
 |---|---|---|---|---|---|
 | fixed (all docs) | 0.409 | 1.000 | 0.292 | -0.031 | 0.260 |
 | dynamic (all docs) | 0.000 | 1.000 | 0.333 | 0.140 | 0.107 |
@@ -75,33 +75,33 @@ Hybrid Hit@3 by query language: ar 1.00 (n=15), en 1.00 (n=13), mixed 1.00 (n=1)
 
 ## 4. Performance
 
-| File | Tokens | Chunks | Load s | Chunk s | Embed s | RAPTOR s | Store s | Total s | Tokens/s | Peak MB |
-|---|---|---|---|---|---|---|---|---|---|---|
-| coffee_history.docx | 654 | 6 | 0.0534 | 0.0009 | 0.0322 | 0.0283 | 0.0684 | 0.2019 | 3239 | 2.22 |
-| coffee_history.pdf | 654 | 6 | 0.1095 | 0.0009 | 0.0375 | 0.0302 | 0.0782 | 0.274 | 2387 | 1.21 |
-| water_ar.txt | 342 | 5 | 0.0009 | 0.0006 | 0.0255 | 0.017 | 0.0495 | 0.1258 | 2719 | 0.7 |
-| water_ar.docx | 342 | 5 | 0.0556 | 0.0005 | 0.0248 | 0.0166 | 0.0496 | 0.1698 | 2014 | 2.22 |
-| water_ar.pdf | 342 | 5 | 0.6902 | 0.0006 | 0.032 | 0.0198 | 0.0602 | 0.8279 | 413 | 2.77 |
-| inspection_report.txt | 292 | 3 | 0.0007 | 0.0007 | 0.0202 | 0.0087 | 0.0296 | 0.063 | 4635 | 0.45 |
-| inspection_report.pdf | 292 | 3 | 0.0744 | 0.0008 | 0.0211 | 0.0099 | 0.0325 | 0.1423 | 2052 | 0.65 |
-| employee_form_ar.docx | 170 | 2 | 0.1418 | 0.0005 | 0.0164 | 0.0126 | 0.0292 | 0.2061 | 825 | 2.22 |
-| employee_form_ar.doc | 170 | 2 | 0.2132 | 0.0005 | 0.0159 | 0.0128 | 0.029 | 0.2771 | 613 | 0.38 |
+| File | Tokens | Chunks | Load s | Chunk s | Embed s | RAPTOR s | Store s | Total s | Tokens/s | Python peak MB | Process RSS MB |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| coffee_history.docx | 654 | 6 | 0.0507 | 0.0016 | 0.0323 | 0.0282 | 0.0593 | 0.1899 | 3444 | 2.22 | 310.2 |
+| coffee_history.pdf | 654 | 6 | 0.0958 | 0.0016 | 0.0379 | 0.0322 | 0.0549 | 0.2401 | 2724 | 1.21 | 310.2 |
+| water_ar.txt | 342 | 5 | 0.0006 | 0.0011 | 0.0246 | 0.0167 | 0.0495 | 0.1151 | 2971 | 0.7 | 310.3 |
+| water_ar.docx | 342 | 5 | 0.0551 | 0.001 | 0.0251 | 0.0165 | 0.0493 | 0.1696 | 2017 | 2.22 | 310.3 |
+| water_ar.pdf | 342 | 5 | 0.6264 | 0.0011 | 0.0297 | 0.019 | 0.0579 | 0.7595 | 450 | 2.74 | 310.4 |
+| inspection_report.txt | 292 | 3 | 0.0005 | 0.0005 | 0.0162 | 0.0074 | 0.0248 | 0.0523 | 5583 | 0.45 | 310.4 |
+| inspection_report.pdf | 292 | 3 | 0.0647 | 0.0007 | 0.02 | 0.0089 | 0.0274 | 0.1252 | 2332 | 0.65 | 310.4 |
+| employee_form_ar.docx | 170 | 2 | 0.1329 | 0.0005 | 0.0156 | 0.0119 | 0.0285 | 0.1951 | 871 | 2.22 | 310.5 |
+| employee_form_ar.doc | 170 | 2 | 0.2336 | 0.0007 | 0.0242 | 0.0184 | 0.0439 | 0.3294 | 516 | 0.38 | 310.5 |
 
-Query latency: vector p50 2.88 ms / p95 3.12 ms, keyword p50 0.19 ms / p95 0.28 ms, graph p50 0.13 ms / p95 0.26 ms, hybrid p50 3.24 ms / p95 4.81 ms
+Query latency: vector p50 2.63 ms / p95 4.22 ms, keyword p50 0.14 ms / p95 0.23 ms, graph p50 0.12 ms / p95 0.23 ms, hybrid p50 4.14 ms / p95 4.76 ms
 
 
 | Documents | Leaf chunks | Ingest s | Docs/s | Hybrid query p50 ms |
 |---|---|---|---|---|
-| 5 | 31 | 0.12 | 41.5 | 3.15 |
-| 20 | 120 | 0.55 | 36.6 | 4.28 |
-| 50 | 300 | 1.25 | 40.0 | 4.99 |
-| 100 | 600 | 2.38 | 42.0 | 10.74 |
+| 5 | 28 | 0.12 | 40.8 | 3.17 |
+| 20 | 110 | 0.51 | 38.9 | 3.99 |
+| 50 | 275 | 1.31 | 38.1 | 5.76 |
+| 100 | 550 | 2.56 | 39.1 | 8.42 |
 
 ## 5. Arabic-specific tests
 
 - **Diacritics preserved end-to-end:** ✅ — source 1298 marks, SQL 1298, vector store 1298 (DOCX: 1298)
 - **Diacritic-insensitive retrieval:** ✅ — vocalized vs bare query pairs with identical top-1: 3/3, word-level agreement 100%
 - **Normalization cases:** ✅ 10/10 (hamza forms, taa marbuta, alef maqsura, tatweel, harakat, Arabic-Indic digits, PDF presentation forms)
-- **Legacy encodings:** ✅ utf-8→utf-8, utf-16→utf-16, cp1256→cp1256
+- **Legacy encodings:** ✅ utf-8→utf-8, utf-16→utf-16, cp1256→cp1256, iso-8859-6→iso-8859-6
 - **Language / direction detection:** ✅
 - **Arabic PDF fidelity:** bare-text similarity 100.0%, garble score 0.0, diacritics recovered 89% (extractor per page: pypdf, pypdf)

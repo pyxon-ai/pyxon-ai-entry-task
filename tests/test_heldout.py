@@ -59,7 +59,7 @@ def test_vocalized_story_keeps_every_haraka():
 
 def test_bilingual_docx_table_is_searchable():
     doc = load_document(DOCS / "bilingual_policy.docx")
-    assert "Unpaid | 30 | No" in doc.text
+    assert "Leave type: Unpaid, Days per year: 30, Paid: No." in doc.text
     assert analyze(doc)[0].language == "mixed"
 
 

@@ -14,7 +14,7 @@ Documents and questions written after the parser was built, in styles it was not
 | bilingual_policy.docx | dynamic | dynamic ✅ | 5 | 4 | 5 headings/sections detected -> structure-aware splitting keeps sections intact |
 | en_manual.md | dynamic | dynamic ✅ | 9 | 7 | 9 headings/sections detected -> structure-aware splitting keeps sections intact |
 | en_manual.pdf | dynamic | dynamic ✅ | 9 | 7 | 9 headings/sections detected -> structure-aware splitting keeps sections intact |
-| long_report.txt | dynamic | dynamic ✅ | 41 | 72 | 41 headings/sections detected -> structure-aware splitting keeps sections intact |
+| long_report.txt | dynamic | dynamic ✅ | 41 | 73 | 41 headings/sections detected -> structure-aware splitting keeps sections intact |
 | edge_one_line.txt | fixed | fixed ✅ | 0 | 50 | no headings detected |
 
 **Accuracy: 8/8**
@@ -23,10 +23,10 @@ Documents and questions written after the parser was built, in styles it was not
 
 | Query kind | n | Hit@1 | Hit@3 | Hit@5 | MRR |
 |---|---|---|---|---|---|
-| lexical | 20 | 0.90 | 1.00 | 1.00 | 0.95 |
+| lexical | 20 | 0.95 | 1.00 | 1.00 | 0.97 |
 | paraphrase | 7 | 0.29 | 0.29 | 0.29 | 0.29 |
 | cross | 1 | 0.00 | 0.00 | 0.00 | 0.00 |
-| all | 28 | 0.71 | 0.79 | 0.79 | 0.75 |
+| all | 28 | 0.75 | 0.79 | 0.79 | 0.77 |
 
 Queries not answered at rank 1:
 
@@ -37,7 +37,6 @@ Queries not answered at rank 1:
 | news-3 | paraphrase | ما نصيب المواطن الأردني من الماء كل عام | not in top 5 | ar_news_cp1256.txt |
 | story-3 | paraphrase | ما الذي نصح به المعلم تلميذه ليصبح متقناً | not in top 5 | ar_news_cp1256.txt |
 | pol-3 | paraphrase | When do I need a doctor's note? | not in top 5 | en_manual.pdf |
-| pol-4 | lexical | unpaid leave days per year table | rank 2 | bilingual_policy.docx |
 | man-1 | lexical | How long does a full solar charge take? | rank 2 | en_manual.pdf |
 | man-3 | paraphrase | Can I take it swimming or drop it in a lake? | not in top 5 | bilingual_policy.docx |
 

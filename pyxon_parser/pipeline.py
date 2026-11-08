@@ -12,7 +12,7 @@ from .chunking import Chunk, DynamicChunker, FixedChunker
 from .embeddings import Embedder, get_embedder
 from .graph import build_graph
 from .llm import get_llm
-from .loaders import load_document
+from .loaders import EmptyDocumentError, load_document
 from .rag import RAGPipeline
 from .raptor import build_tree
 from .retrieval import HybridRetriever
@@ -53,13 +53,18 @@ class PyxonParser:
     ):
         self.embedder = embedder or get_embedder()
         if data_dir is None:
+            # in-memory: both stores are private to this parser (UUID collection)
             self.sql = SQLStore(":memory:")
-            self.vectors = VectorStore(None, collection=f"pyxon_{id(self)}")
+            self.vectors = VectorStore(None, self.embedder.name, self.embedder.dim)
         else:
             data_dir = Path(data_dir)
             data_dir.mkdir(parents=True, exist_ok=True)
             self.sql = SQLStore(data_dir / "pyxon.sqlite3")
-            self.vectors = VectorStore(data_dir / "chroma")
+            # one collection per embedding model; if this model has no (or partial) vectors yet,
+            # rebuild them from the chunk texts kept in SQLite instead of failing at query time
+            self.vectors = VectorStore(data_dir / "chroma", self.embedder.name, self.embedder.dim)
+            if self.vectors.count() != self.sql.chunk_count():
+                self.reindex()
         self.fixed = FixedChunker(fixed_chunk_size, fixed_overlap)
         self.dynamic = DynamicChunker(self.embedder, dynamic_min, dynamic_max)
         self.build_raptor = build_raptor
@@ -87,11 +92,9 @@ class PyxonParser:
         t["load"] = time.perf_counter() - t0
 
         existing = self.sql.find_document(parsed.sha256)
-        if existing is not None:
-            if not replace:
-                analysis, _ = analyze(parsed)
-                return IngestResult(existing, parsed.filename, analysis, [], [], t, duplicate=True)
-            self.delete(existing)
+        if existing is not None and not replace:
+            analysis, _ = analyze(parsed)
+            return IngestResult(existing, parsed.filename, analysis, [], [], t, duplicate=True)
 
         t0 = time.perf_counter()
         analysis, sections = analyze(parsed)
@@ -103,10 +106,15 @@ class PyxonParser:
         t0 = time.perf_counter()
         chunker = self.dynamic if analysis.strategy == "dynamic" else self.fixed
         chunks = chunker.chunk(sections)
+        if not chunks:
+            raise EmptyDocumentError(
+                f"{parsed.filename} has no indexable body text (only headings or empty sections)."
+            )
         t["chunk"] = time.perf_counter() - t0
 
+        # Everything that can fail slowly (embedding, summaries) happens before any write.
         t0 = time.perf_counter()
-        leaf_vecs = self.embedder.embed([c.embedding_text() for c in chunks]) if chunks else np.zeros((0, 1))
+        leaf_vecs = self.embedder.embed([c.embedding_text() for c in chunks])
         t["embed"] = time.perf_counter() - t0
 
         t0 = time.perf_counter()
@@ -115,35 +123,81 @@ class PyxonParser:
             summaries, sum_vecs = build_tree(chunks, leaf_vecs, self.embedder, self._summarize)
         t["raptor"] = time.perf_counter() - t0
 
+        # Writes: SQL in one transaction, committed only after the vectors are stored.
+        # A failure rolls SQL back and removes any partially written vectors; when replacing,
+        # the previous version stays intact until the new one is fully written.
         t0 = time.perf_counter()
-        doc_id = self.sql.insert_document(parsed, analysis, self.embedder.name)
-        self.sql.insert_sections(doc_id, sections)
         all_nodes = chunks + summaries
-        ids = [f"d{doc_id}-L{c.level}-{c.index}" for c in all_nodes]
-        self.sql.insert_chunks(doc_id, [
-            {
-                "id": cid, "document_id": doc_id, "chunk_index": c.index, "level": c.level,
-                "section": c.section, "page": c.page, "strategy": c.strategy, "text": c.text,
-                "normalized_text": c.normalized, "token_count": c.token_count, "char_count": len(c.text),
-                "children": ",".join(map(str, c.children)),
-                "fts_tokens": " ".join(content_tokens(c.embedding_text())),
-            }
-            for cid, c in zip(ids, all_nodes)
-        ])
-        leaf_ids = ids[: len(chunks)]
-        terms, edges = build_graph(leaf_ids, [c.embedding_text() for c in chunks])
-        self.sql.insert_graph(doc_id, terms, edges)
-        if all_nodes:
-            vecs = leaf_vecs if not summaries else np.vstack([leaf_vecs, sum_vecs])
-            self.vectors.add(
-                ids, vecs, [c.text for c in all_nodes],
-                [{"document_id": doc_id, "level": c.level, "section": c.section[:200], "strategy": c.strategy,
-                  "language": analysis.language, "filename": parsed.filename} for c in all_nodes],
-            )
+        ids: list[str] = []
+        try:
+            with self.sql.transaction():
+                if existing is not None:
+                    self.sql.delete_document(existing)  # uncommitted until the end of the block
+                doc_id = self.sql.insert_document(parsed, analysis, self.embedder.name)
+                self.sql.insert_sections(doc_id, sections)
+                ids = [f"d{doc_id}-L{c.level}-{c.index}" for c in all_nodes]
+                self.sql.insert_chunks(doc_id, [
+                    {
+                        "id": cid, "document_id": doc_id, "chunk_index": c.index, "level": c.level,
+                        "section": c.section, "page": c.page, "strategy": c.strategy, "text": c.text,
+                        "normalized_text": c.normalized, "token_count": c.token_count, "char_count": len(c.text),
+                        "children": ",".join(map(str, c.children)),
+                        "fts_tokens": " ".join(content_tokens(c.embedding_text())),
+                    }
+                    for cid, c in zip(ids, all_nodes)
+                ])
+                leaf_ids = ids[: len(chunks)]
+                terms, edges = build_graph(leaf_ids, [c.embedding_text() for c in chunks])
+                self.sql.insert_graph(doc_id, terms, edges)
+                vecs = leaf_vecs if not summaries else np.vstack([leaf_vecs, sum_vecs])
+                self.vectors.add(
+                    ids, vecs, [c.text for c in all_nodes],
+                    [{"document_id": doc_id, "level": c.level, "section": c.section[:200], "strategy": c.strategy,
+                      "language": analysis.language, "filename": parsed.filename} for c in all_nodes],
+                )
+        except BaseException:
+            try:
+                self.vectors.delete_ids(ids)  # compensate a partial vector write
+            except Exception:
+                pass
+            raise
+        if existing is not None:
+            self.vectors.delete_document(existing)  # old version removed only after success
         t["store"] = time.perf_counter() - t0
         t["total"] = sum(t.values())
         return IngestResult(doc_id, parsed.filename, analysis, chunks, summaries,
                             {k: round(v, 4) for k, v in t.items()})
+
+    def reindex(self, batch: int = 256) -> int:
+        """(Re)build the vector index for the current embedding model from the chunk texts in SQLite.
+
+        Used automatically when a persistent store is opened with a model that has no vectors yet
+        (e.g. switching PYXON_EMBEDDER from hashing to fastembed). Returns the number of vectors.
+        """
+        try:
+            self.vectors.client.delete_collection(self.vectors.collection.name)
+        except Exception:
+            pass
+        meta = {"hnsw:space": "cosine", "embedder": self.embedder.name, "dim": int(self.embedder.dim)}
+        self.vectors.collection = self.vectors.client.get_or_create_collection(
+            name=self.vectors.collection.name, metadata=meta, embedding_function=None
+        )
+        n = 0
+        for ids, emb_texts, texts, metas in self.sql.all_chunks_for_index(batch):
+            self.vectors.add(ids, self.embedder.embed(emb_texts), texts, metas)
+            n += len(ids)
+        return n
+
+    def close(self) -> None:
+        """Release the stores; an in-memory parser also drops its private vector collection."""
+        self.vectors.close()
+        self.sql.close()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        self.close()
 
     def delete(self, doc_id: int) -> None:
         self.vectors.delete_document(doc_id)

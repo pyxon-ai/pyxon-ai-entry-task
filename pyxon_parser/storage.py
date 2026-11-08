@@ -13,10 +13,14 @@ joined back to full rows with :meth:`SQLStore.get_chunks`.
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
+import re
 import sqlite3
 import threading
+import uuid
+from contextlib import contextmanager, nullcontext
 from pathlib import Path
 
 import numpy as np
@@ -94,6 +98,29 @@ class SQLStore:
         self.conn.row_factory = sqlite3.Row
         self.conn.execute("PRAGMA foreign_keys = ON")
         self.conn.executescript(SCHEMA)
+        self._in_tx = False
+
+    # -- transactions ----------------------------------------------------------
+    @contextmanager
+    def transaction(self):
+        """Group several writes; commit only if the block succeeds, otherwise roll back."""
+        with self._lock:
+            self._in_tx = True
+            try:
+                yield
+                self.conn.commit()
+            except BaseException:
+                self.conn.rollback()
+                raise
+            finally:
+                self._in_tx = False
+
+    def _write(self):
+        # Inside transaction(): join it. Otherwise: own commit-or-rollback block.
+        return nullcontext() if self._in_tx else self.conn
+
+    def close(self) -> None:
+        self.conn.close()
 
     # -- writes --------------------------------------------------------------
     def find_document(self, sha256: str) -> int | None:
@@ -101,7 +128,7 @@ class SQLStore:
         return row["id"] if row else None
 
     def insert_document(self, parsed, analysis, embedder_name: str) -> int:
-        with self._lock, self.conn:
+        with self._lock, self._write():
             cur = self.conn.execute(
                 """INSERT INTO documents (filename, file_type, sha256, language, direction, has_diacritics,
                    diacritic_density, num_pages, num_tokens, doc_type, strategy, strategy_reasons, keywords,
@@ -118,14 +145,14 @@ class SQLStore:
             return cur.lastrowid
 
     def insert_sections(self, doc_id: int, sections) -> None:
-        with self._lock, self.conn:
+        with self._lock, self._write():
             self.conn.executemany(
                 "INSERT INTO sections (document_id, position, title, level) VALUES (?,?,?,?)",
                 [(doc_id, i, s.title, s.level) for i, s in enumerate(sections) if s.title],
             )
 
     def insert_chunks(self, doc_id: int, rows: list[dict]) -> None:
-        with self._lock, self.conn:
+        with self._lock, self._write():
             self.conn.executemany(
                 """INSERT INTO chunks (id, document_id, chunk_index, level, section, page, strategy, text,
                    normalized_text, token_count, char_count, children) VALUES
@@ -139,7 +166,7 @@ class SQLStore:
             )
 
     def insert_graph(self, doc_id: int, terms: list[dict], edges: list[tuple[str, str, float]]) -> None:
-        with self._lock, self.conn:
+        with self._lock, self._write():
             self.conn.executemany(
                 "INSERT INTO terms (document_id, term, frequency, centrality, chunk_ids) VALUES (?,?,?,?,?)",
                 [(doc_id, t["term"], t["frequency"], t["centrality"], json.dumps(t["chunk_ids"])) for t in terms],
@@ -150,9 +177,27 @@ class SQLStore:
             )
 
     def delete_document(self, doc_id: int) -> None:
-        with self._lock, self.conn:
+        with self._lock, self._write():
             self.conn.execute("DELETE FROM chunks_fts WHERE document_id = ?", (doc_id,))
             self.conn.execute("DELETE FROM documents WHERE id = ?", (doc_id,))
+
+    def all_chunks_for_index(self, batch: int = 500):
+        """Yield (ids, embedding_texts, texts, metadatas) batches - used to rebuild the vector index."""
+        cur = self.conn.execute(
+            """SELECT c.id, c.document_id, c.level, c.section, c.strategy, c.text, d.language, d.filename
+               FROM chunks c JOIN documents d ON d.id = c.document_id ORDER BY c.document_id, c.level, c.chunk_index"""
+        )
+        while rows := cur.fetchmany(batch):
+            yield (
+                [r["id"] for r in rows],
+                [f"{r['section']}\n{r['text']}" if r["section"] else r["text"] for r in rows],
+                [r["text"] for r in rows],
+                [{"document_id": r["document_id"], "level": r["level"], "section": (r["section"] or "")[:200],
+                  "strategy": r["strategy"], "language": r["language"], "filename": r["filename"]} for r in rows],
+            )
+
+    def chunk_count(self) -> int:
+        return self.conn.execute("SELECT COUNT(*) FROM chunks").fetchone()[0]
 
     # -- reads ---------------------------------------------------------------
     def list_documents(self) -> list[dict]:
@@ -236,14 +281,33 @@ class SQLStore:
         ).fetchall()
         return [dict(r) for r in rows]
 
-    def run_readonly_query(self, sql: str, limit: int = 200) -> list[dict]:
-        """Structured-query entry point for the RAG layer / demo. SELECT statements only."""
+    # Actions a read-only query may perform (sqlite3 authorizer codes).
+    _READ_ACTIONS = {sqlite3.SQLITE_SELECT, sqlite3.SQLITE_READ, sqlite3.SQLITE_FUNCTION}
+    if hasattr(sqlite3, "SQLITE_RECURSIVE"):
+        _READ_ACTIONS.add(sqlite3.SQLITE_RECURSIVE)
+
+    def run_readonly_query(self, sql: str, limit: int = 200, params: list | tuple = ()) -> list[dict]:
+        """Structured-query entry point for the RAG layer / demo.
+
+        Read-only is enforced by SQLite itself: an authorizer denies every action other than
+        reading (so ``WITH ... DELETE ... RETURNING`` or ``ATTACH`` fail), on top of a
+        single-statement check. The prefix check alone is not trusted.
+        """
         stripped = sql.strip().rstrip(";")
         if not stripped.lower().startswith(("select", "with")) or ";" in stripped:
             raise ValueError("Only a single read-only SELECT statement is allowed")
-        ro = sqlite3.connect(f"file:{self.path}?mode=ro", uri=True) if self.path != ":memory:" else self.conn
-        ro.row_factory = sqlite3.Row
-        rows = ro.execute(stripped).fetchmany(limit)
+
+        def authorizer(action, *_):
+            return sqlite3.SQLITE_OK if action in self._READ_ACTIONS else sqlite3.SQLITE_DENY
+
+        with self._lock:
+            self.conn.set_authorizer(authorizer)
+            try:
+                rows = self.conn.execute(stripped, tuple(params)).fetchmany(limit)
+            except sqlite3.DatabaseError as exc:
+                raise ValueError(f"Query rejected: {exc}") from exc
+            finally:
+                self.conn.set_authorizer(None)
         return [dict(r) for r in rows]
 
     def stats(self) -> dict:
@@ -257,21 +321,50 @@ class SQLStore:
         }
 
 
-class VectorStore:
-    """Thin wrapper over a Chroma collection (cosine space, external embeddings)."""
+def collection_name_for(embedder_name: str) -> str:
+    """One collection per embedding model: vectors from different models never mix."""
+    slug = re.sub(r"[^a-zA-Z0-9]+", "-", embedder_name).strip("-")[:40] or "model"
+    return f"pyxon-{slug}-{hashlib.sha1(embedder_name.encode()).hexdigest()[:8]}"
 
-    def __init__(self, path: str | Path | None = None, collection: str = "pyxon_chunks"):
+
+class VectorStore:
+    """Thin wrapper over a Chroma collection (cosine space, external embeddings).
+
+    * Persistent stores use one collection per embedding model (name + metadata record the
+      model and dimension), so switching models never queries old vectors with a new model.
+    * Ephemeral stores get a UUID collection name, so a new parser can never inherit vectors
+      from an earlier one in the same process (Chroma's in-memory client is process-global).
+    """
+
+    def __init__(self, path: str | Path | None = None, embedder_name: str = "default", dim: int | None = None):
         import chromadb
         from chromadb.config import Settings
 
         settings = Settings(anonymized_telemetry=False, allow_reset=True)
-        if path is None:
+        self.ephemeral = path is None
+        if self.ephemeral:
             self.client = chromadb.EphemeralClient(settings=settings)
+            name = f"pyxon-tmp-{uuid.uuid4().hex}"
         else:
             self.client = chromadb.PersistentClient(path=str(path), settings=settings)
-        self.collection = self.client.get_or_create_collection(
-            name=collection, metadata={"hnsw:space": "cosine"}, embedding_function=None
-        )
+            name = collection_name_for(embedder_name)
+        meta = {"hnsw:space": "cosine", "embedder": embedder_name}
+        if dim:
+            meta["dim"] = int(dim)
+        self.collection = self.client.get_or_create_collection(name=name, metadata=meta, embedding_function=None)
+        stored = self.collection.metadata or {}
+        if stored.get("embedder", embedder_name) != embedder_name or (dim and stored.get("dim", dim) != dim):
+            raise ValueError(
+                f"Vector collection {name!r} was built with {stored.get('embedder')} (dim {stored.get('dim')}), "
+                f"not {embedder_name} (dim {dim})."
+            )
+
+    def close(self) -> None:
+        if self.ephemeral:
+            try:
+                self.client.delete_collection(self.collection.name)
+            except Exception:  # already gone
+                pass
 
     def add(self, ids: list[str], vectors: np.ndarray, documents: list[str], metadatas: list[dict]) -> None:
         for start in range(0, len(ids), 1000):
@@ -294,6 +387,10 @@ class VectorStore:
 
     def delete_document(self, doc_id: int) -> None:
         self.collection.delete(where={"document_id": doc_id})
+
+    def delete_ids(self, ids: list[str]) -> None:
+        if ids:
+            self.collection.delete(ids=ids)
 
     def count(self) -> int:
         return self.collection.count()

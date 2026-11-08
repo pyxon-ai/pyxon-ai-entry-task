@@ -1,0 +1,254 @@
+"""Regression tests for the issues found in the independent review of PR #19.
+
+Each test reproduces a reported failure with fresh inputs (not repository fixtures).
+"""
+from __future__ import annotations
+
+import gc
+import os
+
+import pytest
+
+os.environ.setdefault("PYXON_EMBEDDER", "hashing")
+
+from docx import Document  # noqa: E402
+
+from pyxon_parser import PyxonParser  # noqa: E402
+from pyxon_parser.analyzer import Section, analyze  # noqa: E402
+from pyxon_parser.chunking import DynamicChunker, FixedChunker  # noqa: E402
+from pyxon_parser.embeddings import HashingEmbedder  # noqa: E402
+from pyxon_parser.loaders import Block, EmptyDocumentError, decode_text, load_document  # noqa: E402
+from pyxon_parser.storage import SQLStore  # noqa: E402
+
+AR = "مَرْحَبًا بِالْعَالَمِ. يعمل سامر في قسم الشبكات."
+
+
+@pytest.fixture
+def en_ar_files(tmp_path):
+    en = tmp_path / "en.txt"
+    en.write_text("The zephyr observatory opens at seven. Tickets cost twelve dinars.", encoding="utf-8")
+    ar = tmp_path / "ar.txt"
+    ar.write_text(AR, encoding="utf-8")
+    return en, ar
+
+
+# --- 1. store isolation ------------------------------------------------------------------
+def test_new_inmemory_parsers_never_inherit_vectors(tmp_path):
+    src = tmp_path / "sentinel.txt"
+    src.write_text("Unique sentinel belongs only to its original parser.", encoding="utf-8")
+    for _ in range(40):  # object ids get reused quickly; the old id()-based names collided
+        p = PyxonParser(embedder=HashingEmbedder(), build_raptor=False)
+        assert p.vectors.count() == 0 and p.sql.stats()["documents"] == 0
+        p.ingest(src)
+        del p
+        gc.collect()
+
+
+def test_close_drops_private_collection(tmp_path):
+    src = tmp_path / "a.txt"
+    src.write_text("Some text about closing parsers properly.", encoding="utf-8")
+    with PyxonParser(build_raptor=False) as p:
+        p.ingest(src)
+        name, client = p.vectors.collection.name, p.vectors.client
+    assert name not in [c.name for c in client.list_collections()]
+
+
+# --- 2. atomic writes ----------------------------------------------------------------------
+def _fail(*_a, **_k):
+    raise RuntimeError("simulated vector store failure")
+
+
+def test_failed_vector_write_leaves_nothing_behind(tmp_path, en_ar_files):
+    en, _ = en_ar_files
+    p = PyxonParser(data_dir=tmp_path / "db")
+    p.vectors.add = _fail
+    with pytest.raises(RuntimeError):
+        p.ingest(en)
+    stats = p.sql.stats()
+    assert stats["documents"] == stats["leaf_chunks"] == stats["terms"] == 0
+    assert p.vectors.count() == 0
+
+
+def test_failed_replacement_keeps_previous_version(tmp_path, en_ar_files):
+    en, _ = en_ar_files
+    p = PyxonParser(data_dir=tmp_path / "db")
+    old = p.ingest(en)
+    good_add = p.vectors.add
+    p.vectors.add = _fail
+    with pytest.raises(RuntimeError):
+        p.ingest(en)  # same sha256 -> replacement
+    p.vectors.add = good_add
+    assert p.sql.get_document(old.document_id) is not None
+    assert p.search("zephyr observatory", k=1)[0].filename == "en.txt"
+
+
+def test_successful_replacement_swaps_versions(tmp_path, en_ar_files):
+    en, _ = en_ar_files
+    p = PyxonParser(data_dir=tmp_path / "db")
+    first = p.ingest(en)
+    second = p.ingest(en)
+    assert p.sql.get_document(first.document_id) is None
+    assert p.sql.stats()["documents"] == 1
+    assert p.vectors.count() == p.sql.chunk_count()
+    assert {h.document_id for h in p.search("zephyr", k=5)} == {second.document_id}
+
+
+# --- 3. dynamic chunking invariants --------------------------------------------------------
+def test_short_section_keeps_its_own_heading():
+    sections = [
+        Section("Fees", 1, [Block("Annual fee is 75 dinars.")]),
+        Section("Refunds", 1, [Block("Refunds are available during the first fourteen days after purchase. "
+                                     "Keep your original receipt and contact the customer service team.")]),
+    ]
+    chunks = DynamicChunker(HashingEmbedder()).chunk(sections)
+    fees = [c for c in chunks if "75 dinars" in c.text]
+    assert fees and all(c.section == "Fees" for c in fees)
+    assert all("75 dinars" not in c.text for c in chunks if c.section == "Refunds")
+
+
+@pytest.mark.parametrize("words", [221, 300, 441, 1000])
+def test_dynamic_chunks_never_exceed_max_size(words):
+    sections = [Section("", 0, [Block(" ".join(["word"] * words))])]
+    chunks = DynamicChunker(HashingEmbedder(), max_size=220).chunk(sections)
+    assert all(c.token_count <= 220 for c in chunks)
+    assert sum(c.token_count for c in chunks) == words
+
+
+def test_dynamic_chunk_pages_follow_their_sentences():
+    long = " ".join(f"Sentence number {i} talks about topic {i % 7}." for i in range(80))
+    sections = [Section("S", 1, [Block(long, page=1), Block(long, page=2)])]
+    chunks = DynamicChunker(HashingEmbedder(), max_size=120).chunk(sections)
+    assert {c.page for c in chunks} == {1, 2}
+
+
+# --- 4. DOCX body order ---------------------------------------------------------------------
+def test_docx_table_stays_under_its_heading(tmp_path):
+    d = Document()
+    d.add_heading("Product Alpha", 1)
+    d.add_paragraph("Alpha is the basic product.")
+    t = d.add_table(rows=2, cols=2)
+    t.cell(0, 0).text, t.cell(0, 1).text = "Item", "Price"
+    t.cell(1, 0).text, t.cell(1, 1).text = "Alpha", "17 dinars"
+    d.add_heading("Product Beta", 1)
+    d.add_paragraph("Beta is the premium product.")
+    f = tmp_path / "table_order.docx"
+    d.save(f)
+    _, sections = analyze(load_document(f))
+    alpha = next(s for s in sections if s.title == "Product Alpha")
+    beta = next(s for s in sections if s.title == "Product Beta")
+    assert "Item: Alpha, Price: 17 dinars." in alpha.text
+    assert "17 dinars" not in beta.text
+
+
+# --- 5. SQL routing ------------------------------------------------------------------------------
+@pytest.fixture
+def routed(tmp_path, en_ar_files):
+    p = PyxonParser(data_dir=tmp_path / "db")
+    for f in en_ar_files:
+        p.ingest(f)
+    p.rag.llm = None
+    return p
+
+
+@pytest.mark.parametrize("q", ["Which documents are Arabic?", "List Arabic documents", "ما هي الملفات العربية؟"])
+def test_language_filter_lists_only_arabic(routed, q):
+    ans = routed.ask(q)
+    assert ans.route == "sql" and [r["filename"] for r in ans.rows] == ["ar.txt"]
+
+
+@pytest.mark.parametrize("q", ["How many Arabic documents are indexed?", "كم عدد المستندات المكتوبة بالعربية؟"])
+def test_language_filter_counts(routed, q):
+    ans = routed.ask(q)
+    assert ans.route == "sql" and ans.rows == [{"documents": 1}]
+
+
+@pytest.mark.parametrize("q", [
+    "What is the marketing strategy for Zephyr?",
+    "Which documents mention the observatory?",
+    "When does the zephyr observatory open?",
+])
+def test_content_questions_are_not_routed_to_sql(routed, q):
+    assert routed.ask(q).route == "rag"
+
+
+def test_strategy_question_and_doc_scope(routed):
+    ans = routed.ask("Which chunking strategy was used?")
+    assert ans.route == "sql" and len(ans.rows) == 2
+    ar_id = next(d["id"] for d in routed.sql.list_documents() if d["filename"] == "ar.txt")
+    scoped = routed.ask("How many documents are indexed?", doc_ids=[ar_id])
+    assert scoped.rows == [{"documents": 1}]
+
+
+# --- 6. embedding model change on an existing index ----------------------------------------------
+def test_switching_embedder_rebuilds_vectors(tmp_path, en_ar_files):
+    p = PyxonParser(data_dir=tmp_path / "db")
+    for f in en_ar_files:
+        p.ingest(f)
+    other = PyxonParser(data_dir=tmp_path / "db", embedder=HashingEmbedder(dim=384))
+    assert other.vectors.count() == other.sql.chunk_count()
+    assert other.search("zephyr observatory", k=1)[0].filename == "en.txt"
+    # the original model's vectors are untouched and still usable
+    again = PyxonParser(data_dir=tmp_path / "db")
+    assert again.search("zephyr observatory", k=1)[0].filename == "en.txt"
+
+
+# --- additional gaps ---------------------------------------------------------------------------
+@pytest.mark.parametrize("enc", ["utf-8", "utf-16", "cp1256", "iso-8859-6"])
+def test_arabic_encodings_roundtrip(enc):
+    text, detected = decode_text(AR.encode(enc))
+    assert text == AR and detected.startswith(enc.split("-sig")[0])
+
+
+def test_encoding_override(tmp_path):
+    f = tmp_path / "legacy.txt"
+    f.write_bytes(AR.encode("iso-8859-6"))
+    assert load_document(f, encoding="iso-8859-6").text == AR
+
+
+def test_heading_only_file_raises_clear_error(tmp_path):
+    f = tmp_path / "headings.txt"
+    f.write_text("# Safety\n\n# Emergency contacts\n", encoding="utf-8")
+    p = PyxonParser()
+    with pytest.raises(EmptyDocumentError):
+        p.ingest(f)
+    assert p.sql.stats()["documents"] == 0
+
+
+@pytest.mark.parametrize("sql", [
+    "WITH x AS (SELECT 1) DELETE FROM documents RETURNING id",
+    "WITH x AS (SELECT 1) UPDATE documents SET filename = 'x' RETURNING id",
+    "SELECT * FROM documents; DROP TABLE documents",
+])
+def test_readonly_guard_blocks_mutations(sql):
+    s = SQLStore(":memory:")
+    s.conn.execute("INSERT INTO documents(filename, file_type, sha256) VALUES ('sentinel','txt','x')")
+    s.conn.commit()
+    with pytest.raises(ValueError):
+        s.run_readonly_query(sql)
+    assert s.conn.execute("SELECT filename FROM documents").fetchone()[0] == "sentinel"
+
+
+def test_extractive_answer_drops_unrelated_sentences(tmp_path):
+    center = tmp_path / "center.txt"
+    center.write_text("يفتح مركز نور الثقافي أبوابه في الساعة التاسعة صباحاً. ويقدم المركز دورات في الخط العربي.",
+                      encoding="utf-8")
+    staff = tmp_path / "staff.txt"
+    staff.write_text("الاسم: نور الهدى سالم. القسم: تقنية المعلومات. المدينة: عمان.", encoding="utf-8")
+    p = PyxonParser()
+    p.rag.llm = None
+    p.ingest(center)
+    p.ingest(staff)
+    ans = p.ask("متى يفتح مركز نور؟").answer
+    assert "التاسعة" in ans and "الهدى" not in ans
+
+
+def test_unanswerable_question_says_not_found(routed):
+    assert "could not find" in routed.ask("What is the capital of Peru?").answer
+
+
+def test_boundary_metric_rejects_forced_cuts():
+    from benchmarks.run_benchmark import _chunk_quality
+
+    sections = [Section("", 0, [Block(" ".join(["ordinary"] * 300))])]
+    chunks = FixedChunker(120, 20).chunk(sections)
+    assert _chunk_quality(chunks, sections, HashingEmbedder())["clean_boundary_rate"] < 1

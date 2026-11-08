@@ -127,9 +127,25 @@ class DynamicChunker:
         self.window, self.breakpoint_percentile = window, breakpoint_percentile
 
     # -- semantic split ------------------------------------------------------
-    def _semantic_split(self, sentences: list[str]) -> list[list[str]]:
-        if len(sentences) < 3:
-            return [sentences]
+    def _pack(self, units: list[tuple[str, int | None]]) -> list[list[tuple[str, int | None]]]:
+        """Greedy size-only grouping (used when there are too few units to measure topic shifts)."""
+        groups, current, size = [], [], 0
+        for unit in units:
+            n = count_tokens(unit[0])
+            if current and size + n > self.max_size:
+                groups.append(current)
+                current, size = [], 0
+            current.append(unit)
+            size += n
+        if current:
+            groups.append(current)
+        return groups
+
+    def _semantic_split(self, units: list[tuple[str, int | None]]) -> list[list[tuple[str, int | None]]]:
+        """Split (sentence, page) units where meaning shifts, never exceeding ``max_size`` words."""
+        if len(units) < 3:
+            return self._pack(units)
+        sentences = [u[0] for u in units]
         w = self.window
         windows = [" ".join(sentences[max(0, i - w + 1) : i + 1]) for i in range(len(sentences))]
         ahead = [" ".join(sentences[i : i + w]) for i in range(len(sentences))]
@@ -138,14 +154,14 @@ class DynamicChunker:
         sims = np.sum(left * right, axis=1)  # similarity across each gap
         threshold = float(np.percentile(sims, self.breakpoint_percentile))
 
-        groups, current, size = [], [sentences[0]], count_tokens(sentences[0])
-        for gap, sent in enumerate(sentences[1:]):
-            n = count_tokens(sent)
+        groups, current, size = [], [units[0]], count_tokens(sentences[0])
+        for gap, unit in enumerate(units[1:]):
+            n = count_tokens(unit[0])
             topic_shift = sims[gap] <= threshold and size >= self.min_size
             if current and (topic_shift or size + n > self.max_size):
                 groups.append(current)
                 current, size = [], 0
-            current.append(sent)
+            current.append(unit)
             size += n
         if current:
             groups.append(current)
@@ -154,44 +170,50 @@ class DynamicChunker:
     def chunk(self, sections: list[Section]) -> list[Chunk]:
         pieces: list[Chunk] = []
         for s in sections:
-            page = s.blocks[0].page if s.blocks else None
-            body = s.text
-            if not body.strip():
+            if not s.text.strip():
                 continue
-            if count_tokens(body) <= self.max_size:
-                pieces.append(Chunk(text=" ".join(b.text for b in s.blocks), section=s.title, strategy="dynamic", page=page))
-                continue
-            sentences = []
+            # (sentence, page) units; over-long sentences are cut at max_size words
+            units: list[tuple[str, int | None]] = []
             for b in s.blocks:
                 for sent in split_sentences(b.text):
-                    if count_tokens(sent) > self.max_size:
-                        sentences.extend(_split_long_sentence(sent, self.max_size))
-                    else:
-                        sentences.append(sent)
-            for group in self._semantic_split(sentences):
-                pieces.append(Chunk(text=" ".join(group), section=s.title, strategy="dynamic", page=page))
+                    parts = _split_long_sentence(sent, self.max_size) if count_tokens(sent) > self.max_size else [sent]
+                    units.extend((p, b.page) for p in parts)
+            if sum(count_tokens(u[0]) for u in units) <= self.max_size:
+                groups = [units]
+            else:
+                groups = self._semantic_split(units)
+            for group in groups:
+                pieces.append(Chunk(text=" ".join(u[0] for u in group), section=s.title,
+                                    strategy="dynamic", page=group[0][1]))
 
-        # merge undersized fragments into the previous chunk of the same section
+        # Merge undersized fragments - but only within the same section, and never past max_size.
+        # A short section (e.g. "Fees: Annual fee is 75 dinars.") stays its own chunk under its own
+        # heading rather than being absorbed by the next section. The one exception is untitled
+        # preamble text (a document title line), which is glued to the start of the first section.
         merged: list[Chunk] = []
-        carry = ""  # tiny fragment with no same-section predecessor (e.g. a title line)
+        carry: Chunk | None = None
         for c in pieces:
-            if carry:
-                c.text = f"{carry} {c.text}"
-                carry = ""
+            if carry is not None:
+                if c.token_count + carry.token_count <= self.max_size:
+                    c.text = f"{carry.text} {c.text}"
+                    c.page = carry.page if carry.page is not None else c.page
+                else:
+                    merged.append(carry)
+                carry = None
             if c.token_count < self.min_size:
                 if (
                     merged
                     and merged[-1].section == c.section
-                    and merged[-1].token_count + c.token_count <= self.max_size * 1.25
+                    and merged[-1].token_count + c.token_count <= self.max_size
                 ):
                     merged[-1].text += " " + c.text
                     continue
-                if c.token_count < self.min_size // 4 and c is not pieces[-1]:
-                    carry = c.text  # glue it to the start of the next chunk
+                if not c.section and c is not pieces[-1] and c.token_count < self.min_size // 2:
+                    carry = c  # untitled preamble: prepend to the next chunk
                     continue
             merged.append(c)
-        if carry:
-            merged.append(Chunk(text=carry, strategy="dynamic"))
+        if carry is not None:
+            merged.append(carry)
         for i, c in enumerate(merged):
             c.index = i
         return merged

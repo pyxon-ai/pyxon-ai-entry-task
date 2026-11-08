@@ -87,7 +87,7 @@
           "hit@3": 1.0,
           "hit@5": 1.0,
           "mrr@5": 0.966,
-          "ndcg@5": 0.975,
+          "ndcg@5": 0.961,
           "misses": []
         },
         "keyword": {
@@ -95,7 +95,7 @@
           "hit@3": 1.0,
           "hit@5": 1.0,
           "mrr@5": 1.0,
-          "ndcg@5": 1.0,
+          "ndcg@5": 0.987,
           "misses": []
         },
         "graph": {
@@ -126,7 +126,7 @@
           "hit@3": 1.0,
           "hit@5": 1.0,
           "mrr@5": 0.983,
-          "ndcg@5": 0.987,
+          "ndcg@5": 0.974,
           "misses": []
         }
       },
@@ -152,7 +152,7 @@
           "hit@3": 1.0,
           "hit@5": 1.0,
           "mrr@5": 0.948,
-          "ndcg@5": 0.962,
+          "ndcg@5": 0.948,
           "misses": []
         },
         "keyword": {
@@ -160,7 +160,7 @@
           "hit@3": 1.0,
           "hit@5": 1.0,
           "mrr@5": 1.0,
-          "ndcg@5": 1.0,
+          "ndcg@5": 0.987,
           "misses": []
         },
         "graph": {
@@ -191,7 +191,7 @@
           "hit@3": 1.0,
           "hit@5": 1.0,
           "mrr@5": 0.983,
-          "ndcg@5": 0.987,
+          "ndcg@5": 0.974,
           "misses": []
         }
       },
@@ -514,175 +514,184 @@
         "file": "coffee_history.docx",
         "tokens": 654,
         "chunks": 6,
-        "load": 0.0534,
-        "analyze": 0.0187,
-        "chunk": 0.0009,
-        "embed": 0.0322,
-        "raptor": 0.0283,
-        "store": 0.0684,
-        "total": 0.2019,
-        "tokens_per_sec": 3239,
-        "peak_mem_mb": 2.22
+        "load": 0.0507,
+        "analyze": 0.0178,
+        "chunk": 0.0016,
+        "embed": 0.0323,
+        "raptor": 0.0282,
+        "store": 0.0593,
+        "total": 0.1899,
+        "tokens_per_sec": 3444,
+        "peak_mem_mb": 2.22,
+        "rss_mb": 310.2
       },
       {
         "file": "coffee_history.pdf",
         "tokens": 654,
         "chunks": 6,
-        "load": 0.1095,
-        "analyze": 0.0178,
-        "chunk": 0.0009,
-        "embed": 0.0375,
-        "raptor": 0.0302,
-        "store": 0.0782,
-        "total": 0.274,
-        "tokens_per_sec": 2387,
-        "peak_mem_mb": 1.21
+        "load": 0.0958,
+        "analyze": 0.0177,
+        "chunk": 0.0016,
+        "embed": 0.0379,
+        "raptor": 0.0322,
+        "store": 0.0549,
+        "total": 0.2401,
+        "tokens_per_sec": 2724,
+        "peak_mem_mb": 1.21,
+        "rss_mb": 310.2
       },
       {
         "file": "water_ar.txt",
         "tokens": 342,
         "chunks": 5,
-        "load": 0.0009,
-        "analyze": 0.0324,
-        "chunk": 0.0006,
-        "embed": 0.0255,
-        "raptor": 0.017,
+        "load": 0.0006,
+        "analyze": 0.0225,
+        "chunk": 0.0011,
+        "embed": 0.0246,
+        "raptor": 0.0167,
         "store": 0.0495,
-        "total": 0.1258,
-        "tokens_per_sec": 2719,
-        "peak_mem_mb": 0.7
+        "total": 0.1151,
+        "tokens_per_sec": 2971,
+        "peak_mem_mb": 0.7,
+        "rss_mb": 310.3
       },
       {
         "file": "water_ar.docx",
         "tokens": 342,
         "chunks": 5,
-        "load": 0.0556,
+        "load": 0.0551,
         "analyze": 0.0227,
-        "chunk": 0.0005,
-        "embed": 0.0248,
-        "raptor": 0.0166,
-        "store": 0.0496,
-        "total": 0.1698,
-        "tokens_per_sec": 2014,
-        "peak_mem_mb": 2.22
+        "chunk": 0.001,
+        "embed": 0.0251,
+        "raptor": 0.0165,
+        "store": 0.0493,
+        "total": 0.1696,
+        "tokens_per_sec": 2017,
+        "peak_mem_mb": 2.22,
+        "rss_mb": 310.3
       },
       {
         "file": "water_ar.pdf",
         "tokens": 342,
         "chunks": 5,
-        "load": 0.6902,
+        "load": 0.6264,
         "analyze": 0.0252,
-        "chunk": 0.0006,
-        "embed": 0.032,
-        "raptor": 0.0198,
-        "store": 0.0602,
-        "total": 0.8279,
-        "tokens_per_sec": 413,
-        "peak_mem_mb": 2.77
+        "chunk": 0.0011,
+        "embed": 0.0297,
+        "raptor": 0.019,
+        "store": 0.0579,
+        "total": 0.7595,
+        "tokens_per_sec": 450,
+        "peak_mem_mb": 2.74,
+        "rss_mb": 310.4
       },
       {
         "file": "inspection_report.txt",
         "tokens": 292,
         "chunks": 3,
-        "load": 0.0007,
-        "analyze": 0.0031,
-        "chunk": 0.0007,
-        "embed": 0.0202,
-        "raptor": 0.0087,
-        "store": 0.0296,
-        "total": 0.063,
-        "tokens_per_sec": 4635,
-        "peak_mem_mb": 0.45
+        "load": 0.0005,
+        "analyze": 0.0028,
+        "chunk": 0.0005,
+        "embed": 0.0162,
+        "raptor": 0.0074,
+        "store": 0.0248,
+        "total": 0.0523,
+        "tokens_per_sec": 5583,
+        "peak_mem_mb": 0.45,
+        "rss_mb": 310.4
       },
       {
         "file": "inspection_report.pdf",
         "tokens": 292,
         "chunks": 3,
-        "load": 0.0744,
-        "analyze": 0.0036,
-        "chunk": 0.0008,
-        "embed": 0.0211,
-        "raptor": 0.0099,
-        "store": 0.0325,
-        "total": 0.1423,
-        "tokens_per_sec": 2052,
-        "peak_mem_mb": 0.65
+        "load": 0.0647,
+        "analyze": 0.0034,
+        "chunk": 0.0007,
+        "embed": 0.02,
+        "raptor": 0.0089,
+        "store": 0.0274,
+        "total": 0.1252,
+        "tokens_per_sec": 2332,
+        "peak_mem_mb": 0.65,
+        "rss_mb": 310.4
       },
       {
         "file": "employee_form_ar.docx",
         "tokens": 170,
         "chunks": 2,
-        "load": 0.1418,
-        "analyze": 0.0055,
+        "load": 0.1329,
+        "analyze": 0.0056,
         "chunk": 0.0005,
-        "embed": 0.0164,
-        "raptor": 0.0126,
-        "store": 0.0292,
-        "total": 0.2061,
-        "tokens_per_sec": 825,
-        "peak_mem_mb": 2.22
+        "embed": 0.0156,
+        "raptor": 0.0119,
+        "store": 0.0285,
+        "total": 0.1951,
+        "tokens_per_sec": 871,
+        "peak_mem_mb": 2.22,
+        "rss_mb": 310.5
       },
       {
         "file": "employee_form_ar.doc",
         "tokens": 170,
         "chunks": 2,
-        "load": 0.2132,
-        "analyze": 0.0057,
-        "chunk": 0.0005,
-        "embed": 0.0159,
-        "raptor": 0.0128,
-        "store": 0.029,
-        "total": 0.2771,
-        "tokens_per_sec": 613,
-        "peak_mem_mb": 0.38
+        "load": 0.2336,
+        "analyze": 0.0085,
+        "chunk": 0.0007,
+        "embed": 0.0242,
+        "raptor": 0.0184,
+        "store": 0.0439,
+        "total": 0.3294,
+        "tokens_per_sec": 516,
+        "peak_mem_mb": 0.38,
+        "rss_mb": 310.5
       }
     ],
     "query_latency": {
       "vector": {
-        "p50_ms": 2.88,
-        "p95_ms": 3.12
+        "p50_ms": 2.63,
+        "p95_ms": 4.22
       },
       "keyword": {
-        "p50_ms": 0.19,
-        "p95_ms": 0.28
+        "p50_ms": 0.14,
+        "p95_ms": 0.23
       },
       "graph": {
-        "p50_ms": 0.13,
-        "p95_ms": 0.26
+        "p50_ms": 0.12,
+        "p95_ms": 0.23
       },
       "hybrid": {
-        "p50_ms": 3.24,
-        "p95_ms": 4.81
+        "p50_ms": 4.14,
+        "p95_ms": 4.76
       }
     },
     "scalability": [
       {
         "documents": 5,
-        "leaf_chunks": 31,
+        "leaf_chunks": 28,
         "ingest_s": 0.12,
-        "docs_per_sec": 41.5,
-        "hybrid_p50_ms": 3.15
+        "docs_per_sec": 40.8,
+        "hybrid_p50_ms": 3.17
       },
       {
         "documents": 20,
-        "leaf_chunks": 120,
-        "ingest_s": 0.55,
-        "docs_per_sec": 36.6,
-        "hybrid_p50_ms": 4.28
+        "leaf_chunks": 110,
+        "ingest_s": 0.51,
+        "docs_per_sec": 38.9,
+        "hybrid_p50_ms": 3.99
       },
       {
         "documents": 50,
-        "leaf_chunks": 300,
-        "ingest_s": 1.25,
-        "docs_per_sec": 40.0,
-        "hybrid_p50_ms": 4.99
+        "leaf_chunks": 275,
+        "ingest_s": 1.31,
+        "docs_per_sec": 38.1,
+        "hybrid_p50_ms": 5.76
       },
       {
         "documents": 100,
-        "leaf_chunks": 600,
-        "ingest_s": 2.38,
-        "docs_per_sec": 42.0,
-        "hybrid_p50_ms": 10.74
+        "leaf_chunks": 550,
+        "ingest_s": 2.56,
+        "docs_per_sec": 39.1,
+        "hybrid_p50_ms": 8.42
       }
     ]
   },
@@ -799,6 +808,10 @@
         },
         "cp1256": {
           "detected": "cp1256",
+          "roundtrip": true
+        },
+        "iso-8859-6": {
+          "detected": "iso-8859-6",
           "roundtrip": true
         }
       },

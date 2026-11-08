@@ -30,7 +30,7 @@
     {"id": "pol-1", "kind": "lexical", "file": "bilingual_policy.docx", "query": "How many days of annual leave do full-time employees get?", "evidence": "21 working days"},
     {"id": "pol-2", "kind": "lexical", "file": "bilingual_policy.docx", "query": "مدة إجازة الأمومة", "evidence": "سبعون يوماً"},
     {"id": "pol-3", "kind": "paraphrase", "file": "bilingual_policy.docx", "query": "When do I need a doctor's note?", "evidence": "medical certificate"},
-    {"id": "pol-4", "kind": "lexical", "file": "bilingual_policy.docx", "query": "unpaid leave days per year table", "evidence": "Unpaid | 30"},
+    {"id": "pol-4", "kind": "lexical", "file": "bilingual_policy.docx", "query": "unpaid leave days per year table", "evidence": "Leave type: Unpaid, Days per year: 30"},
     {"id": "pol-5", "kind": "lexical", "file": "bilingual_policy.docx", "query": "How far in advance must leave requests be submitted?", "evidence": "two weeks in advance"},
     {"id": "man-1", "kind": "lexical", "file": "en_manual.pdf", "query": "How long does a full solar charge take?", "evidence": "about 9 hours"},
     {"id": "man-2", "kind": "lexical", "file": "en_manual.pdf", "query": "status light flashes red three times", "evidence": "outside the safe range"},

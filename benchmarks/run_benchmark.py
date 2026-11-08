@@ -30,6 +30,7 @@ import tracemalloc
 from pathlib import Path
 
 import numpy as np
+import psutil
 
 from pyxon_parser import PyxonParser
 from pyxon_parser.analyzer import analyze
@@ -72,6 +73,15 @@ def is_relevant(result, q) -> bool:
     return family(result.filename) == q["family"] and normalize_for_index(q["evidence"]) in normalize_for_index(result.text)
 
 
+def count_relevant(parser, q) -> int:
+    """Number of leaf chunks in the index that are relevant to q (ground truth for ideal DCG)."""
+    ev = normalize_for_index(q["evidence"])
+    rows = parser.sql.conn.execute(
+        "SELECT d.filename, c.normalized_text FROM chunks c JOIN documents d ON d.id = c.document_id WHERE c.level = 0"
+    ).fetchall()
+    return sum(family(r["filename"]) == q["family"] and ev in r["normalized_text"] for r in rows)
+
+
 # ---------------------------------------------------------------------------
 def bench_strategy(embedder) -> dict:
     parser = PyxonParser(embedder=embedder, build_raptor=False)
@@ -90,6 +100,7 @@ def bench_retrieval(embedder, queries) -> dict:
         parser = PyxonParser(embedder=embedder)
         for f in files:
             parser.ingest(SAMPLES / f)
+        total_relevant = {q["id"]: count_relevant(parser, q) for q in queries}
         per_mode = {}
         for mode in MODES:
             hits1 = hits3 = hits5 = 0
@@ -103,7 +114,10 @@ def bench_retrieval(embedder, queries) -> dict:
                 hits5 += first is not None
                 rr.append(0 if first is None else 1 / (first + 1))
                 dcg = sum(1 / math.log2(i + 2) for i, r in enumerate(rel) if r)
-                idcg = sum(1 / math.log2(i + 2) for i in range(max(1, min(sum(rel), 5))))
+                # ideal DCG from the ground truth: every relevant chunk in the index, not only
+                # the ones this ranking happened to retrieve
+                n_rel = total_relevant[q["id"]]
+                idcg = sum(1 / math.log2(i + 2) for i in range(min(n_rel, 5)))
                 ndcg.append(dcg / idcg if idcg else 0)
                 if first is None:
                     failures.append(q["id"])
@@ -127,17 +141,22 @@ def bench_retrieval(embedder, queries) -> dict:
 def _chunk_quality(chunks, sections, embedder) -> dict:
     sizes = [c.token_count for c in chunks]
     sent_section = {}
+    source_sentences = []
     for s in sections:
         for b in s.blocks:
             for sent in split_sentences(b.text):
                 sent_section.setdefault(sent.strip(), s.title)
+                source_sentences.append(" ".join(sent.split()))
     crossings, clean_end, intra, inter = 0, 0, [], []
     sent_vecs = [embedder.embed(split_sentences(c.text) or [c.text]) for c in chunks]
     for i, c in enumerate(chunks):
         sents = split_sentences(c.text)
         secs = {sent_section.get(s.strip()) for s in sents} - {None}
         crossings += len(secs) > 1
-        clean_end += c.text.rstrip().endswith((".", "!", "?", "؟", "۔")) or c.text.rstrip()[-1:].isalnum()
+        # clean = the chunk ends exactly where a complete source sentence ends (a forced cut
+        # inside a sentence, even a punctuation-less one, does not count)
+        text = " ".join(c.text.split())
+        clean_end += any(text.endswith(src) for src in source_sentences if src)
         v = sent_vecs[i]
         if len(v) >= 2:
             sim = v @ v.T
@@ -206,10 +225,11 @@ def bench_performance(embedder, queries, quick: bool) -> dict:
         r = parser.ingest(SAMPLES / name)
         _, peak = tracemalloc.get_traced_memory()
         tracemalloc.stop()
+        rss = psutil.Process().memory_info().rss  # whole process: Python + native libs + vector index
         tokens = r.analysis.num_tokens
         ingest.append({"file": name, "tokens": tokens, "chunks": len(r.chunks), **r.timings,
                        "tokens_per_sec": round(tokens / r.timings["total"]) if r.timings["total"] else None,
-                       "peak_mem_mb": round(peak / 2**20, 2)})
+                       "peak_mem_mb": round(peak / 2**20, 2), "rss_mb": round(rss / 2**20, 1)})
 
     latency = {}
     for mode in MODES:
@@ -302,13 +322,10 @@ def bench_arabic(embedder, queries) -> dict:
     # 4. encodings
     sample = "الْمَاءُ أَصْلُ الْحَيَاةِ"
     enc = {}
-    for e in ["utf-8", "utf-16", "cp1256"]:
-        try:
-            raw = sample.encode(e) if e != "cp1256" else strip_diacritics(sample).encode(e)
-        except UnicodeEncodeError:
-            continue
-        text, detected = decode_text(raw if e != "utf-16" else raw)
-        enc[e] = {"detected": detected, "roundtrip": text in (sample, strip_diacritics(sample))}
+    for e in ["utf-8", "utf-16", "cp1256", "iso-8859-6"]:
+        raw = sample.encode(e)  # all four can represent vocalized Arabic
+        text, detected = decode_text(raw)
+        enc[e] = {"detected": detected, "roundtrip": text == sample}
     results["encodings"] = {"cases": enc, "passed": all(v["roundtrip"] for v in enc.values())}
 
     # 5. language + direction detection
@@ -344,15 +361,15 @@ def to_markdown(res: dict) -> str:
         for m, v in data["modes"].items():
             L.append(f"| {m} | {v['hit@1']:.2f} | {v['hit@3']:.2f} | {v['hit@5']:.2f} | {v['mrr@5']:.2f} | {v['ndcg@5']:.2f} | {', '.join(v['misses']) or '—'} |")
         L.append("\nHybrid Hit@3 by query language: " + ", ".join(f"{k} {v['hit@3']:.2f} (n={v['n']})" for k, v in data["hybrid_by_language"].items()) + "\n")
-    L.append("## 3. Chunking quality\n\n| Group | Section-crossing rate ↓ | Clean boundary rate ↑ | Intra-chunk coherence ↑ | Coherence gap ↑ | Size CV |\n|---|---|---|---|---|---|")
+    L.append("## 3. Chunking quality\n\n| Group | Section-crossing rate ↓ | Ends on a complete source sentence ↑ | Intra-chunk coherence ↑ | Coherence gap ↑ | Size CV |\n|---|---|---|---|---|---|")
     for k, v in res["chunking"]["summary"].items():
         L.append(f"| {k} | {v['section_crossing_rate']:.3f} | {v['clean_boundary_rate']:.3f} | {v['intra_chunk_coherence']:.3f} | {v['coherence_gap']:.3f} | {v['size_cv']:.3f} |")
     L.append("\n<details><summary>Per document</summary>\n\n| File | Strategy | Auto? | Chunks | Avg tokens | Crossing | Coherence | Gap |\n|---|---|---|---|---|---|---|---|")
     for r in res["chunking"]["rows"]:
         L.append(f"| {r['file']} | {r['strategy']} | {'✓' if r['auto_choice'] else ''} | {r['chunks']} | {r['avg_tokens']} | {r['section_crossing_rate']} | {r['intra_chunk_coherence']} | {r['coherence_gap']} |")
-    L.append("\n</details>\n\n## 4. Performance\n\n| File | Tokens | Chunks | Load s | Chunk s | Embed s | RAPTOR s | Store s | Total s | Tokens/s | Peak MB |\n|---|---|---|---|---|---|---|---|---|---|---|")
+    L.append("\n</details>\n\n## 4. Performance\n\n| File | Tokens | Chunks | Load s | Chunk s | Embed s | RAPTOR s | Store s | Total s | Tokens/s | Python peak MB | Process RSS MB |\n|---|---|---|---|---|---|---|---|---|---|---|---|")
     for r in res["performance"]["ingest"]:
-        L.append(f"| {r['file']} | {r['tokens']} | {r['chunks']} | {r['load']} | {r['chunk']} | {r['embed']} | {r['raptor']} | {r['store']} | {r['total']} | {r['tokens_per_sec']} | {r['peak_mem_mb']} |")
+        L.append(f"| {r['file']} | {r['tokens']} | {r['chunks']} | {r['load']} | {r['chunk']} | {r['embed']} | {r['raptor']} | {r['store']} | {r['total']} | {r['tokens_per_sec']} | {r['peak_mem_mb']} | {r['rss_mb']} |")
     L.append("\nQuery latency: " + ", ".join(f"{m} p50 {v['p50_ms']} ms / p95 {v['p95_ms']} ms" for m, v in res["performance"]["query_latency"].items()))
     L.append("\n\n| Documents | Leaf chunks | Ingest s | Docs/s | Hybrid query p50 ms |\n|---|---|---|---|---|")
     for r in res["performance"]["scalability"]:
