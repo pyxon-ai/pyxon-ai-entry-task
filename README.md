@@ -48,7 +48,7 @@ My solution to the [Pyxon AI junior engineer entry task](TASK.md): a document pa
 ```bash
 pip install -r requirements-dev.txt -c constraints.txt   # Python 3.11+; constraints = the tested versions
 python app.py                            # demo on http://localhost:7860 (sample docs auto-load)
-pytest                                   # 114 tests (unit, held-out documents, broken files, review regressions)
+pytest                                   # 115 tests (unit, held-out documents, broken files, review regressions)
 python -m benchmarks.run_benchmark       # writes benchmarks/results/results.{md,json}
 ```
 
@@ -184,7 +184,7 @@ pyxon_parser/
 app.py           Gradio demo
 benchmarks/      queries.json, run_benchmark.py, results/, heldout/ (unseen-document evaluation)
 samples/         sample corpus (EN/AR, vocalized Arabic, forms) + build script
-tests/           pytest suite (114 tests)
+tests/           pytest suite (115 tests)
 .github/         CI: tests on Python 3.11/3.12, held-out evaluation, Docker build
 ```
 

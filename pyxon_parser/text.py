@@ -25,6 +25,10 @@ ENGLISH_STOPWORDS = set(
 STRUCTURAL = {"chapter", "section", "part", "فصل", "الفصل", "باب", "الباب", "قسم", "القسم"}
 STOPWORDS = ENGLISH_STOPWORDS | ARABIC_STOPWORDS | STRUCTURAL
 
+# Bump whenever content_tokens() changes: a stored index built with an older tokenizer is then
+# rebuilt from the chunk texts on open (v2: af'al broken plurals also indexed as singular).
+LEXICAL_VERSION = 2
+
 
 def split_sentences(text: str) -> list[str]:
     parts = _SENT_SPLIT_RE.split(text.strip())

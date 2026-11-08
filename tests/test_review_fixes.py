@@ -289,3 +289,23 @@ def test_broken_plural_matches_singular():
         p.ingest(Path(__file__).resolve().parent.parent / "samples" / name)
     top = p.search("من أين يأتي المطر؟", k=3)[0]
     assert top.filename == "water_ar.txt" and "keyword" in top.sources
+
+
+def test_stale_keyword_index_is_rebuilt_on_open(tmp_path):
+    """A store built by an older tokenizer is re-tokenized on open: unchanged files are skipped on
+    re-upload, so without this the new tokens (e.g. 'مطر' for 'الأمطار') would never reach them."""
+    samples = Path(__file__).resolve().parent.parent / "samples"
+    p = PyxonParser(data_dir=tmp_path, build_raptor=False)
+    p.ingest(samples / "water_ar.txt")
+    p.ingest(samples / "coffee_history.docx")
+    # simulate an index written by the previous tokenizer: no singular tokens, old version number
+    p.sql.conn.execute("UPDATE chunks_fts SET tokens = replace(tokens, ' مطر', '')")
+    p.sql.set_lexical_version(1)
+    assert not p.sql.keyword_search(["مطر"], k=5)
+    p.close()
+    p2 = PyxonParser(data_dir=tmp_path, build_raptor=False)
+    assert p2.sql.lexical_version() == 2
+    assert p2.sql.keyword_search(["مطر"], k=5)
+    assert p2.search("من أين يأتي المطر؟", k=3)[0].filename == "water_ar.txt"
+    assert p2.sql.conn.execute("SELECT count(*) FROM terms").fetchone()[0] > 0
+    p2.close()

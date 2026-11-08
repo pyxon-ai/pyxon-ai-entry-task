@@ -181,6 +181,42 @@ class SQLStore:
             self.conn.execute("DELETE FROM chunks_fts WHERE document_id = ?", (doc_id,))
             self.conn.execute("DELETE FROM documents WHERE id = ?", (doc_id,))
 
+    # -- lexical index versioning -------------------------------------------------
+    def lexical_version(self) -> int:
+        return int(self.conn.execute("PRAGMA user_version").fetchone()[0])
+
+    def rebuild_lexical(self, version: int, tokenize, build_graph) -> int:
+        """Rebuild the FTS5 tokens and the term graph of every document from the stored chunk texts
+        (after a tokenizer change). Runs in one transaction. Returns the number of chunks re-tokenized."""
+        n = 0
+        with self.transaction():
+            self.conn.execute("DELETE FROM chunks_fts")
+            self.conn.execute("DELETE FROM term_edges")
+            self.conn.execute("DELETE FROM terms")
+            doc_ids = [r[0] for r in self.conn.execute("SELECT id FROM documents ORDER BY id")]
+            for doc_id in doc_ids:
+                rows = self.conn.execute(
+                    "SELECT id, level, section, text FROM chunks WHERE document_id = ? ORDER BY level, chunk_index",
+                    (doc_id,),
+                ).fetchall()
+                texts = {r["id"]: f"{r['section']}\n{r['text']}" if r["section"] else r["text"] for r in rows}
+                self.conn.executemany(
+                    "INSERT INTO chunks_fts (chunk_id, document_id, level, tokens) VALUES (?,?,?,?)",
+                    [(r["id"], doc_id, r["level"], " ".join(tokenize(texts[r["id"]]))) for r in rows],
+                )
+                leaves = [r["id"] for r in rows if r["level"] == 0]
+                if leaves:
+                    terms, edges = build_graph(leaves, [texts[c] for c in leaves])
+                    self.insert_graph(doc_id, terms, edges)
+                n += len(rows)
+            self.conn.execute(f"PRAGMA user_version = {int(version)}")
+        return n
+
+    def set_lexical_version(self, version: int) -> None:
+        with self._lock:
+            self.conn.execute(f"PRAGMA user_version = {int(version)}")
+            self.conn.commit()
+
     def all_chunks_for_index(self, batch: int = 500):
         """Yield (ids, embedding_texts, texts, metadatas) batches - used to rebuild the vector index."""
         cur = self.conn.execute(
