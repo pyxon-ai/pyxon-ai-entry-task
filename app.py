@@ -155,7 +155,8 @@ with gr.Blocks(title="Pyxon AI Document Parser") as demo:
             with gr.Column():
                 strategy = gr.Radio(["auto", "fixed", "dynamic"], value="auto", label="Chunking strategy")
                 go = gr.Button("Parse & index", variant="primary")
-                gr.Examples([[str(SAMPLES / n)] for n in
+                # the upload box takes multiple files, so each example value must be a list
+                gr.Examples([[[str(SAMPLES / n)]] for n in
                              ["water_ar.pdf", "water_ar.txt", "coffee_history.pdf", "employee_form_ar.doc", "inspection_report.pdf"]],
                             inputs=[files], label="Sample files (Arabic with harakat, English, forms)")
         report = gr.Markdown()
