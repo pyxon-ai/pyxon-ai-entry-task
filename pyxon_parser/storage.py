@@ -5,7 +5,8 @@ SQL schema (see ``SCHEMA``):
 * ``documents``  - one row per file: type, language, diacritics, strategy and why
 * ``sections``   - detected headings in reading order
 * ``chunks``     - every chunk (leaf and RAPTOR summary) with original text
-* ``chunks_fts`` - FTS5 index over normalized, light-stemmed tokens (BM25 keyword search)
+* ``chunks_fts`` - FTS5 index (BM25 keyword search) with two columns: the normalized words, and their
+  extra Arabic forms (light stems, broken-plural singulars), which count half as much
 * ``terms`` / ``term_edges`` - the per-document knowledge graph (concept co-occurrence)
 
 The vector store holds the same chunk ids, so results from either side can be
@@ -27,6 +28,10 @@ import numpy as np
 
 # chromadb's bundled posthog client is noisy (and telemetry is disabled anyway)
 logging.getLogger("chromadb.telemetry.product.posthog").setLevel(logging.CRITICAL)
+
+FTS_SCHEMA = "CREATE VIRTUAL TABLE chunks_fts USING fts5(chunk_id UNINDEXED, document_id UNINDEXED, level UNINDEXED, tokens, stems);"
+# BM25 weight of a match on an extra Arabic form (stem / singular) relative to an exact word match.
+STEM_WEIGHT = 0.5
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS documents (
@@ -71,7 +76,7 @@ CREATE TABLE IF NOT EXISTS chunks (
     children TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_chunks_doc ON chunks(document_id, level);
-CREATE VIRTUAL TABLE IF NOT EXISTS chunks_fts USING fts5(chunk_id UNINDEXED, document_id UNINDEXED, level UNINDEXED, tokens);
+CREATE VIRTUAL TABLE IF NOT EXISTS chunks_fts USING fts5(chunk_id UNINDEXED, document_id UNINDEXED, level UNINDEXED, tokens, stems);
 CREATE TABLE IF NOT EXISTS terms (
     document_id INTEGER NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
     term TEXT NOT NULL,
@@ -161,8 +166,8 @@ class SQLStore:
                 rows,
             )
             self.conn.executemany(
-                "INSERT INTO chunks_fts (chunk_id, document_id, level, tokens) VALUES (?,?,?,?)",
-                [(r["id"], doc_id, r["level"], r["fts_tokens"]) for r in rows],
+                "INSERT INTO chunks_fts (chunk_id, document_id, level, tokens, stems) VALUES (?,?,?,?,?)",
+                [(r["id"], doc_id, r["level"], *r["fts_fields"]) for r in rows],
             )
 
     def insert_graph(self, doc_id: int, terms: list[dict], edges: list[tuple[str, str, float]]) -> None:
@@ -185,12 +190,14 @@ class SQLStore:
     def lexical_version(self) -> int:
         return int(self.conn.execute("PRAGMA user_version").fetchone()[0])
 
-    def rebuild_lexical(self, version: int, tokenize, build_graph) -> int:
+    def rebuild_lexical(self, version: int, index_fields, build_graph) -> int:
         """Rebuild the FTS5 tokens and the term graph of every document from the stored chunk texts
         (after a tokenizer change). Runs in one transaction. Returns the number of chunks re-tokenized."""
         n = 0
         with self.transaction():
-            self.conn.execute("DELETE FROM chunks_fts")
+            # recreate: older stores have a single-column FTS table
+            self.conn.execute("DROP TABLE IF EXISTS chunks_fts")
+            self.conn.execute(FTS_SCHEMA)
             self.conn.execute("DELETE FROM term_edges")
             self.conn.execute("DELETE FROM terms")
             doc_ids = [r[0] for r in self.conn.execute("SELECT id FROM documents ORDER BY id")]
@@ -201,8 +208,8 @@ class SQLStore:
                 ).fetchall()
                 texts = {r["id"]: f"{r['section']}\n{r['text']}" if r["section"] else r["text"] for r in rows}
                 self.conn.executemany(
-                    "INSERT INTO chunks_fts (chunk_id, document_id, level, tokens) VALUES (?,?,?,?)",
-                    [(r["id"], doc_id, r["level"], " ".join(tokenize(texts[r["id"]]))) for r in rows],
+                    "INSERT INTO chunks_fts (chunk_id, document_id, level, tokens, stems) VALUES (?,?,?,?,?)",
+                    [(r["id"], doc_id, r["level"], *index_fields(texts[r["id"]])) for r in rows],
                 )
                 leaves = [r["id"] for r in rows if r["level"] == 0]
                 if leaves:
@@ -279,7 +286,7 @@ class SQLStore:
         if not tokens:
             return []
         match = " OR ".join(f'"{t}"' for t in dict.fromkeys(tokens))
-        sql = "SELECT chunk_id, bm25(chunks_fts) AS s FROM chunks_fts WHERE chunks_fts MATCH ?"
+        sql = f"SELECT chunk_id, bm25(chunks_fts, 0, 0, 0, 1.0, {STEM_WEIGHT}) AS s FROM chunks_fts WHERE chunks_fts MATCH ?"
         args: list = [match]
         if level is not None:
             sql += " AND level = ?"

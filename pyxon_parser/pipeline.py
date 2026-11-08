@@ -17,7 +17,7 @@ from .rag import RAGPipeline
 from .raptor import build_tree
 from .retrieval import HybridRetriever
 from .storage import SQLStore, VectorStore
-from .text import LEXICAL_VERSION, content_tokens
+from .text import LEXICAL_VERSION, index_fields
 
 
 @dataclass
@@ -63,10 +63,7 @@ class PyxonParser:
             # keyword index and term graph built with an older tokenizer: rebuild them from the
             # stored chunk texts (re-uploading an unchanged file is skipped, so it would never refresh)
             if self.sql.lexical_version() != LEXICAL_VERSION:
-                if self.sql.chunk_count():
-                    self.sql.rebuild_lexical(LEXICAL_VERSION, content_tokens, build_graph)
-                else:
-                    self.sql.set_lexical_version(LEXICAL_VERSION)
+                self.sql.rebuild_lexical(LEXICAL_VERSION, index_fields, build_graph)
             # one collection per embedding model; if this model has no (or partial) vectors yet,
             # rebuild them from the chunk texts kept in SQLite instead of failing at query time
             self.vectors = VectorStore(data_dir / "chroma", self.embedder.name, self.embedder.dim)
@@ -149,7 +146,7 @@ class PyxonParser:
                         "section": c.section, "page": c.page, "strategy": c.strategy, "text": c.text,
                         "normalized_text": c.normalized, "token_count": c.token_count, "char_count": len(c.text),
                         "children": ",".join(map(str, c.children)),
-                        "fts_tokens": " ".join(content_tokens(c.embedding_text())),
+                        "fts_fields": index_fields(c.embedding_text()),
                     }
                     for cid, c in zip(ids, all_nodes)
                 ])

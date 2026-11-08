@@ -18,6 +18,7 @@ import gradio as gr
 import pandas as pd
 
 from pyxon_parser import PyxonParser
+from pyxon_parser.api import create_app
 from pyxon_parser.arabic import diacritic_stats
 
 ROOT = Path(__file__).parent
@@ -169,7 +170,8 @@ with gr.Blocks(title="Pyxon AI Document Parser") as demo:
         "(lossless for TXT/DOCX; text-based PDFs recover most marks).\n\n"
         f"Embedder: `{parser.embedder.name}` · LLM: `{parser.rag.llm.model if parser.rag.llm else 'none (extractive answers)'}`\n\n"
         "> ⚠️ **Shared public demo.** Every visitor sees the same index: uploaded files, the SQL tab and "
-        "deletion are shared. Please upload only sample or public documents."
+        "deletion are shared. Please upload only sample or public documents.\n>\n"
+        "> 🔌 **REST API:** the same features as JSON endpoints, with interactive docs at [`/docs`](/docs)."
         + (EMBEDDER_NOTE if isinstance(parser.embedder, _Hashing) else "")
     )
     status = gr.Markdown()
@@ -233,5 +235,12 @@ with gr.Blocks(title="Pyxon AI Document Parser") as demo:
     dbtn.click(delete_doc, del_id, [lib, status])
     demo.load(load_samples, None, [lib, status])
 
+# One server for both: the REST API at /api (docs at /docs) and the demo UI at /
+load_samples()  # so API clients find the samples even before anyone opens the UI
+api = create_app(parser)
+api = gr.mount_gradio_app(api, demo, path="/", css=CSS)
+
 if __name__ == "__main__":
-    demo.launch(server_name="0.0.0.0", server_port=int(os.getenv("PORT", 7860)), css=CSS)
+    import uvicorn
+
+    uvicorn.run(api, host="0.0.0.0", port=int(os.getenv("PORT", 7860)))

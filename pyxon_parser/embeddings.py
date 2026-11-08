@@ -57,7 +57,7 @@ class HashingEmbedder(Embedder):
 
     @staticmethod
     def _word_ngrams(text: str) -> list[str]:
-        toks = content_tokens(text)
+        toks = content_tokens(text, expand=False)
         return toks + [f"{a}_{b}" for a, b in zip(toks, toks[1:])]
 
     def embed(self, texts: list[str], *, is_query: bool = False) -> np.ndarray:
@@ -113,10 +113,22 @@ class FastEmbedEmbedder(Embedder):
         return vecs / norms
 
 
+# Arabic-specific models suggested by the task (AraBERT / CAMeLBERT families), by short name.
+# ``arabert`` is AraBERT v02 fine-tuned for Arabic sentence similarity (NLI + STS);
+# ``camelbert`` is the raw CAMeLBERT-MSA encoder with mean pooling (not trained for similarity:
+# included as a baseline to show why a sentence-level fine-tune matters).
+ARABIC_MODELS = {
+    "arabert": "Omartificial-Intelligence-Space/GATE-AraBert-v1",
+    "camelbert": "CAMeL-Lab/bert-base-arabic-camelbert-msa",
+}
+
+
 @lru_cache(maxsize=4)
 def get_embedder(choice: str | None = None) -> Embedder:
-    """``hashing`` | ``fastembed`` | ``fastembed:<model>`` | ``auto`` | <sentence-transformers model>."""
+    """``hashing`` | ``fastembed`` | ``fastembed:<model>`` | ``arabert`` | ``camelbert`` | ``auto`` |
+    <sentence-transformers model>. ``arabert``/``camelbert`` need ``pip install sentence-transformers``."""
     choice = choice or os.getenv("PYXON_EMBEDDER", "auto")
+    choice = ARABIC_MODELS.get(choice, choice)
     if choice == "hashing":
         return HashingEmbedder()
     if choice.startswith("fastembed"):

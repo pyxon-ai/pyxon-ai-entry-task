@@ -82,6 +82,32 @@ def arabic_pdf(src: Path, dst: Path) -> None:
         browser.close()
 
 
+def scanned_pdf(src: Path, dst: Path) -> None:
+    """A "scanned" page: the text is rendered to a picture and only the picture goes in the PDF,
+    so there is no text layer (exercises the OCR path)."""
+    import html
+
+    import pymupdf
+    from playwright.sync_api import sync_playwright
+
+    lines = [l.strip() for l in src.read_text(encoding="utf-8").splitlines() if l.strip()]
+    body = "".join(f"<{'h2' if i == 0 else 'p'} dir='auto'>{html.escape(l)}</{'h2' if i == 0 else 'p'}>"
+                   for i, l in enumerate(lines))
+    with sync_playwright() as p:
+        browser = p.chromium.launch()
+        page = browser.new_page(viewport={"width": 900, "height": 700}, device_scale_factor=2)
+        page.set_content('<html dir="rtl"><body style="font-family:\'DejaVu Sans\';font-size:18px;'
+                         'line-height:1.9;padding:30px;background:white">' + body + "</body></html>")
+        png = page.screenshot(full_page=True)
+        browser.close()
+    doc = pymupdf.open()
+    img = pymupdf.open(stream=png, filetype="png")
+    rect = img[0].rect
+    pdf_page = doc.new_page(width=rect.width / 2, height=rect.height / 2)
+    pdf_page.insert_image(pdf_page.rect, stream=png)
+    doc.save(dst)
+
+
 def main() -> None:
     # English book with chapters -> DOCX (heading styles) + PDF
     text_to_docx(SRC / "coffee_history.md", HERE / "coffee_history.docx")
@@ -98,6 +124,8 @@ def main() -> None:
     # LibreOffice writes broken ToUnicode maps for vocalized Arabic, so the Arabic
     # PDF is printed by Chromium instead (what a browser "Save as PDF" produces).
     arabic_pdf(SRC / "water_ar.txt", HERE / "water_ar.pdf")
+    # Scanned Arabic notice (image only, no text layer) -> read with OCR
+    scanned_pdf(SRC / "scanned_notice_ar.txt", HERE / "scanned_notice_ar.pdf")
     # Arabic form -> DOCX + legacy DOC
     text_to_docx(SRC / "employee_form_ar.txt", HERE / "employee_form_ar.docx", rtl=True)
     convert(HERE / "employee_form_ar.docx", "doc")

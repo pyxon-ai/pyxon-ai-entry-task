@@ -350,6 +350,25 @@ def bench_arabic(embedder, queries) -> dict:
 
 
 # ---------------------------------------------------------------------------
+def bench_ocr() -> dict:
+    """Scanned (image-only) Arabic PDF read with Tesseract, compared with the source text."""
+    from difflib import SequenceMatcher
+
+    from pyxon_parser.loaders import load_document, ocr_available
+
+    if not ocr_available():
+        return {"available": False}
+    src = (SAMPLES / "src" / "scanned_notice_ar.txt").read_text(encoding="utf-8")
+    t0 = time.perf_counter()
+    doc = load_document(SAMPLES / "scanned_notice_ar.pdf")
+    secs = time.perf_counter() - t0
+    a, b = " ".join(src.split()), " ".join(doc.text.split())
+    sw, tw = set(normalize_for_index(src).split()), set(normalize_for_index(doc.text).split())
+    return {"available": True, "char_similarity": round(SequenceMatcher(None, a, b, autojunk=False).ratio(), 3),
+            "word_recall": round(len(sw & tw) / len(sw), 3), "seconds": round(secs, 2),
+            "extractor_per_page": doc.meta.get("extractor_per_page")}
+
+
 def to_markdown(res: dict) -> str:
     L = [f"# Benchmark results\n\nEmbedder: `{res['embedder']}` · Python {res['python']} · {res['date']}\n"]
     s = res["strategy"]
@@ -385,7 +404,13 @@ def to_markdown(res: dict) -> str:
     L.append(f"- **Legacy encodings:** {'✅' if a['encodings']['passed'] else '❌'} " + ", ".join(f"{k}→{v['detected']}" for k, v in a['encodings']['cases'].items()))
     L.append(f"- **Language / direction detection:** {'✅' if a['language_direction']['passed'] else '❌'}")
     p = a["pdf_fidelity"]
-    L.append(f"- **Arabic PDF fidelity:** bare-text similarity {p['char_similarity_bare']:.1%}, garble score {p['garble_score']}, diacritics recovered {p['diacritics_recovered_ratio']:.0%} (extractor per page: {', '.join(p['extractor_per_page'])})\n")
+    L.append(f"- **Arabic PDF fidelity:** bare-text similarity {p['char_similarity_bare']:.1%}, garble score {p['garble_score']}, diacritics recovered {p['diacritics_recovered_ratio']:.0%} (extractor per page: {', '.join(p['extractor_per_page'])})")
+    o = res.get("ocr", {})
+    if o.get("available"):
+        L.append(f"- **Scanned Arabic PDF (OCR, Tesseract ara+eng):** character similarity {o['char_similarity']:.1%}, word recall {o['word_recall']:.1%}, {o['seconds']} s/page")
+    else:
+        L.append("- **Scanned Arabic PDF (OCR):** skipped (Tesseract with Arabic data not installed)")
+    L.append("")
     return "\n".join(L)
 
 
@@ -409,6 +434,7 @@ def main() -> None:
         ("chunking", lambda: bench_chunking(embedder)),
         ("performance", lambda: bench_performance(embedder, queries, args.quick)),
         ("arabic", lambda: bench_arabic(embedder, queries)),
+        ("ocr", bench_ocr),
     ]:
         t0 = time.perf_counter()
         res[name] = fn()

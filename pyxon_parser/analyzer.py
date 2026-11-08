@@ -119,7 +119,7 @@ def extractive_summary(text: str, max_sentences: int = 3) -> str:
     keywords = set(top_keywords(text, k=20))
     scored = []
     for idx, s in enumerate(sentences):
-        toks = content_tokens(s)
+        toks = content_tokens(s, expand=False)
         if not toks:
             continue
         score = sum(t in keywords for t in toks) / (len(toks) ** 0.5)

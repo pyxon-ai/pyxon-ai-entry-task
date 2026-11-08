@@ -299,13 +299,75 @@ def test_stale_keyword_index_is_rebuilt_on_open(tmp_path):
     p.ingest(samples / "water_ar.txt")
     p.ingest(samples / "coffee_history.docx")
     # simulate an index written by the previous tokenizer: no singular tokens, old version number
-    p.sql.conn.execute("UPDATE chunks_fts SET tokens = replace(tokens, ' مطر', '')")
+    p.sql.conn.execute("UPDATE chunks_fts SET tokens = replace(tokens, ' مطر', ''), stems = ''")
     p.sql.set_lexical_version(1)
     assert not p.sql.keyword_search(["مطر"], k=5)
     p.close()
     p2 = PyxonParser(data_dir=tmp_path, build_raptor=False)
-    assert p2.sql.lexical_version() == 2
+    from pyxon_parser.text import LEXICAL_VERSION
+
+    assert p2.sql.lexical_version() == LEXICAL_VERSION
     assert p2.sql.keyword_search(["مطر"], k=5)
     assert p2.search("من أين يأتي المطر؟", k=3)[0].filename == "water_ar.txt"
     assert p2.sql.conn.execute("SELECT count(*) FROM terms").fetchone()[0] > 0
     p2.close()
+
+
+def test_light_stemming_and_weighted_stem_column(tmp_path):
+    """Arabic surface forms share a stem in the second FTS column; exact words still rank first."""
+    from pyxon_parser.text import index_fields, light_stem
+
+    assert light_stem("معلمون") == "معلم" and light_stem("للمدارس") == "مدارس"
+    words, stems = index_fields("ذهب المعلمون إلى المدارس")
+    assert "معلمون" in words.split() and "معلم" in stems.split()
+    p = PyxonParser(build_raptor=False)
+    for name, text in [("a.txt", "حضر المعلم الاجتماع الصباحي في القاعة الكبرى."),
+                       ("b.txt", "حضر المعلمون الاجتماع المسائي في الساحة.")]:
+        (tmp_path / name).write_text(text, encoding="utf-8")
+        p.ingest(tmp_path / name)
+    hits = p.sql.keyword_search(["معلمون", "معلم"], k=5)
+    names = [p.sql.get_chunks([cid])[cid]["filename"] for cid, _ in hits]
+    assert names[0] == "b.txt" and "a.txt" in names  # exact form first, stem-only match still found
+
+
+def test_old_single_column_fts_store_is_migrated(tmp_path):
+    """A store created before the stems column existed is migrated on open."""
+    import sqlite3
+
+    samples = Path(__file__).resolve().parent.parent / "samples"
+    p = PyxonParser(data_dir=tmp_path, build_raptor=False)
+    p.ingest(samples / "water_ar.txt")
+    p.close()
+    con = sqlite3.connect(tmp_path / "pyxon.sqlite3")
+    con.execute("DROP TABLE chunks_fts")
+    con.execute("CREATE VIRTUAL TABLE chunks_fts USING fts5(chunk_id UNINDEXED, document_id UNINDEXED, level UNINDEXED, tokens)")
+    con.execute("PRAGMA user_version = 2")
+    con.commit()
+    con.close()
+    p2 = PyxonParser(data_dir=tmp_path, build_raptor=False)
+    assert p2.search("من أين يأتي المطر؟", k=1)[0].filename == "water_ar.txt"
+    p2.ingest(samples / "coffee_history.docx")  # new rows go into the new two-column table
+    p2.close()
+
+
+def test_scanned_pdf_is_read_with_ocr():
+    """An image-only Arabic PDF goes through Tesseract and becomes searchable."""
+    from pyxon_parser.loaders import ocr_available
+
+    if not ocr_available():
+        pytest.skip("Tesseract with Arabic data is not installed")
+    samples = Path(__file__).resolve().parent.parent / "samples"
+    doc = load_document(samples / "scanned_notice_ar.pdf")
+    assert doc.meta["extractor_per_page"] == ["ocr"]
+    assert "جبل الحسين" in doc.text and "‏" not in doc.text
+    p = PyxonParser(build_raptor=False)
+    p.ingest(samples / "scanned_notice_ar.pdf")
+    p.ingest(samples / "water_ar.txt")
+    assert "الثامنة" in p.ask("متى سيتم قطع المياه في جبل الحسين؟").answer
+
+
+def test_image_without_text_still_rejected_clearly():
+    """A blank scan gives a clear error whether or not OCR is installed."""
+    heldout = Path(__file__).resolve().parent.parent / "benchmarks" / "heldout" / "docs"
+    with pytest.raises(EmptyDocumentError, match="scanned/image-only PDF"):
+        load_document(heldout / "edge_image_only.pdf")

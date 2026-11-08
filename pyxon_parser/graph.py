@@ -19,7 +19,7 @@ from .text import content_tokens
 
 
 def build_graph(chunk_ids: list[str], texts: list[str], terms_per_chunk: int = 8):
-    tokenized = [content_tokens(t) for t in texts]
+    tokenized = [content_tokens(t, expand=False) for t in texts]
     df = Counter(t for toks in tokenized for t in set(toks))
     n = len(texts)
 

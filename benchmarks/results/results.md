@@ -1,6 +1,6 @@
 # Benchmark results
 
-Embedder: `hashing-char2-5+word1-2-2048` · Python 3.13.18 · 2026-11-08
+Embedder: `hashing-char2-5+word1-2-2048` · Python 3.13.18 · 2026-11-09
 
 ## 1. Strategy selection — accuracy 100%
 
@@ -22,10 +22,10 @@ Embedder: `hashing-char2-5+word1-2-2048` · Python 3.13.18 · 2026-11-08
 
 | Retriever | Hit@1 | Hit@3 | Hit@5 | MRR@5 | nDCG@5 | Misses |
 |---|---|---|---|---|---|---|
-| vector | 0.93 | 0.97 | 1.00 | 0.96 | 0.95 | — |
-| keyword | 1.00 | 1.00 | 1.00 | 1.00 | 0.99 | — |
+| vector | 0.93 | 1.00 | 1.00 | 0.97 | 0.96 | — |
+| keyword | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 | — |
 | graph | 0.52 | 0.52 | 0.52 | 0.52 | 0.52 | en-1, en-4, en-6, en-9, ar-1, ar-1b, ar-3, ar-5, ar-5b, ar-7, ar-9, ar-10, ar-11, mix-1 |
-| hybrid | 0.97 | 1.00 | 1.00 | 0.98 | 0.97 | — |
+| hybrid | 0.97 | 1.00 | 1.00 | 0.98 | 0.99 | — |
 
 Hybrid Hit@3 by query language: ar 1.00 (n=15), en 1.00 (n=13), mixed 1.00 (n=1)
 
@@ -33,10 +33,10 @@ Hybrid Hit@3 by query language: ar 1.00 (n=15), en 1.00 (n=13), mixed 1.00 (n=1)
 
 | Retriever | Hit@1 | Hit@3 | Hit@5 | MRR@5 | nDCG@5 | Misses |
 |---|---|---|---|---|---|---|
-| vector | 0.90 | 0.97 | 1.00 | 0.94 | 0.94 | — |
-| keyword | 1.00 | 1.00 | 1.00 | 1.00 | 0.99 | — |
+| vector | 0.90 | 1.00 | 1.00 | 0.95 | 0.95 | — |
+| keyword | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 | — |
 | graph | 0.52 | 0.52 | 0.52 | 0.52 | 0.52 | en-1, en-4, en-6, en-9, ar-1, ar-1b, ar-3, ar-5, ar-5b, ar-7, ar-9, ar-10, ar-11, mix-1 |
-| hybrid | 0.97 | 1.00 | 1.00 | 0.98 | 0.97 | — |
+| hybrid | 0.97 | 1.00 | 1.00 | 0.98 | 0.99 | — |
 
 Hybrid Hit@3 by query language: ar 1.00 (n=15), en 1.00 (n=13), mixed 1.00 (n=1)
 
@@ -56,12 +56,12 @@ Hybrid Hit@3 by query language: ar 1.00 (n=15), en 1.00 (n=13), mixed 1.00 (n=1)
 | coffee_history.docx | dynamic | ✓ | 6 | 102.2 | 0.0 | 0.308 | 0.012 |
 | coffee_history.pdf | fixed |  | 7 | 97.1 | 0.714 | 0.299 | -0.023 |
 | coffee_history.pdf | dynamic | ✓ | 6 | 102.2 | 0.0 | 0.308 | 0.012 |
-| water_ar.txt | fixed |  | 4 | 89.8 | 0.75 | 0.223 | -0.036 |
-| water_ar.txt | dynamic | ✓ | 5 | 62.6 | 0.0 | 0.248 | 0.027 |
-| water_ar.docx | fixed |  | 4 | 89.0 | 0.75 | 0.221 | -0.037 |
-| water_ar.docx | dynamic | ✓ | 5 | 62.0 | 0.0 | 0.245 | 0.024 |
-| water_ar.pdf | fixed |  | 4 | 89.8 | 0.75 | 0.223 | -0.036 |
-| water_ar.pdf | dynamic | ✓ | 5 | 62.6 | 0.0 | 0.248 | 0.027 |
+| water_ar.txt | fixed |  | 4 | 89.8 | 0.75 | 0.224 | -0.037 |
+| water_ar.txt | dynamic | ✓ | 5 | 62.6 | 0.0 | 0.249 | 0.026 |
+| water_ar.docx | fixed |  | 4 | 89.0 | 0.75 | 0.222 | -0.037 |
+| water_ar.docx | dynamic | ✓ | 5 | 62.0 | 0.0 | 0.245 | 0.023 |
+| water_ar.pdf | fixed |  | 4 | 89.8 | 0.75 | 0.224 | -0.037 |
+| water_ar.pdf | dynamic | ✓ | 5 | 62.6 | 0.0 | 0.249 | 0.026 |
 | inspection_report.txt | fixed | ✓ | 3 | 98.7 | 0.0 | 0.214 | -0.018 |
 | inspection_report.txt | dynamic |  | 2 | 143.0 | 0.0 | 0.233 | -0.006 |
 | inspection_report.pdf | fixed | ✓ | 3 | 109.7 | 0.0 | 0.232 | -0.014 |
@@ -77,25 +77,25 @@ Hybrid Hit@3 by query language: ar 1.00 (n=15), en 1.00 (n=13), mixed 1.00 (n=1)
 
 | File | Tokens | Chunks | Load s | Chunk s | Embed s | RAPTOR s | Store s | Total s | Tokens/s | Python peak MB | Process RSS MB |
 |---|---|---|---|---|---|---|---|---|---|---|---|
-| coffee_history.docx | 654 | 6 | 0.0559 | 0.0016 | 0.0336 | 0.0376 | 0.0618 | 0.2095 | 3122 | 2.22 | 310.8 |
-| coffee_history.pdf | 654 | 6 | 0.1006 | 0.0016 | 0.0389 | 0.0316 | 0.0557 | 0.2475 | 2642 | 1.21 | 310.9 |
-| water_ar.txt | 342 | 5 | 0.0005 | 0.0011 | 0.0256 | 0.0172 | 0.0494 | 0.1169 | 2926 | 0.7 | 310.9 |
-| water_ar.docx | 342 | 5 | 0.0555 | 0.001 | 0.0249 | 0.017 | 0.0502 | 0.1715 | 1994 | 2.22 | 311.0 |
-| water_ar.pdf | 342 | 5 | 0.6493 | 0.0011 | 0.0317 | 0.0207 | 0.0612 | 0.7894 | 433 | 2.77 | 311.0 |
-| inspection_report.txt | 292 | 3 | 0.0005 | 0.0006 | 0.0173 | 0.0074 | 0.0274 | 0.0562 | 5196 | 0.45 | 311.1 |
-| inspection_report.pdf | 292 | 3 | 0.0697 | 0.0008 | 0.0205 | 0.0095 | 0.028 | 0.1318 | 2215 | 0.65 | 311.1 |
-| employee_form_ar.docx | 170 | 2 | 0.1352 | 0.0005 | 0.0156 | 0.0126 | 0.0285 | 0.1978 | 859 | 2.22 | 311.1 |
-| employee_form_ar.doc | 170 | 2 | 0.2898 | 0.0007 | 0.0172 | 0.012 | 0.028 | 0.3563 | 477 | 0.38 | 311.1 |
+| coffee_history.docx | 654 | 6 | 0.0726 | 0.0024 | 0.0466 | 0.0415 | 0.0778 | 0.2682 | 2438 | 2.22 | 311.0 |
+| coffee_history.pdf | 654 | 6 | 0.0977 | 0.0016 | 0.0375 | 0.031 | 0.0553 | 0.242 | 2702 | 1.21 | 311.1 |
+| water_ar.txt | 342 | 5 | 0.0006 | 0.0011 | 0.0278 | 0.0215 | 0.0546 | 0.1347 | 2539 | 0.71 | 311.2 |
+| water_ar.docx | 342 | 5 | 0.0567 | 0.001 | 0.0273 | 0.0226 | 0.0589 | 0.1955 | 1749 | 2.22 | 311.2 |
+| water_ar.pdf | 342 | 5 | 0.6652 | 0.0011 | 0.0341 | 0.0291 | 0.0698 | 0.8321 | 411 | 2.77 | 311.3 |
+| inspection_report.txt | 292 | 3 | 0.0007 | 0.0008 | 0.0247 | 0.008 | 0.0278 | 0.0661 | 4418 | 0.45 | 311.3 |
+| inspection_report.pdf | 292 | 3 | 0.0675 | 0.0008 | 0.0203 | 0.0095 | 0.0284 | 0.13 | 2246 | 0.65 | 311.3 |
+| employee_form_ar.docx | 170 | 2 | 0.1372 | 0.0005 | 0.0176 | 0.0149 | 0.0349 | 0.2128 | 799 | 2.22 | 311.3 |
+| employee_form_ar.doc | 170 | 2 | 0.2453 | 0.0007 | 0.0251 | 0.0175 | 0.0313 | 0.33 | 515 | 0.39 | 311.4 |
 
-Query latency: vector p50 27.52 ms / p95 61.19 ms, keyword p50 0.52 ms / p95 19.4 ms, graph p50 0.15 ms / p95 1.54 ms, hybrid p50 3.79 ms / p95 22.5 ms
+Query latency: vector p50 18.34 ms / p95 51.74 ms, keyword p50 0.37 ms / p95 19.61 ms, graph p50 0.18 ms / p95 1.55 ms, hybrid p50 3.56 ms / p95 22.29 ms
 
 
 | Documents | Leaf chunks | Ingest s | Docs/s | Hybrid query p50 ms |
 |---|---|---|---|---|
-| 5 | 28 | 0.14 | 35.3 | 20.23 |
-| 20 | 110 | 0.53 | 37.6 | 5.54 |
-| 50 | 275 | 1.28 | 39.1 | 7.25 |
-| 100 | 550 | 2.76 | 36.3 | 10.3 |
+| 5 | 28 | 0.12 | 42.4 | 19.09 |
+| 20 | 110 | 0.58 | 34.4 | 8.89 |
+| 50 | 275 | 1.49 | 33.5 | 6.24 |
+| 100 | 550 | 2.61 | 38.3 | 10.36 |
 
 ## 5. Arabic-specific tests
 
@@ -105,3 +105,4 @@ Query latency: vector p50 27.52 ms / p95 61.19 ms, keyword p50 0.52 ms / p95 19.
 - **Legacy encodings:** ✅ utf-8→utf-8, utf-16→utf-16, cp1256→cp1256, iso-8859-6→iso-8859-6
 - **Language / direction detection:** ✅
 - **Arabic PDF fidelity:** bare-text similarity 100.0%, garble score 0.0, diacritics recovered 89% (extractor per page: pypdf, pypdf)
+- **Scanned Arabic PDF (OCR, Tesseract ara+eng):** character similarity 99.9%, word recall 98.4%, 1.0 s/page

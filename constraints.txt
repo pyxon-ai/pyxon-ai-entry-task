@@ -21,3 +21,4 @@ scipy==1.17.1
 starlette==1.10.0
 tabulate==0.10.0
 tokenizers==0.20.3
+pytesseract==0.3.13

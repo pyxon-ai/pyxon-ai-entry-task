@@ -16,8 +16,8 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           cache: pip
-      - name: Install LibreOffice (legacy .doc support)
-        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libreoffice-writer
+      - name: Install LibreOffice (legacy .doc) and Tesseract with Arabic (OCR)
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libreoffice-writer tesseract-ocr tesseract-ocr-ara
       - name: Install dependencies (tested pins)
         run: pip install -r requirements-dev.txt -c constraints.txt
       - name: Tests

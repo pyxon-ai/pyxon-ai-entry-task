@@ -8,11 +8,13 @@ because pypdf does not expose them reliably) and which page it came from.
 from __future__ import annotations
 
 import hashlib
+import os
 import re
 import shutil
 import subprocess
 import tempfile
 from collections import Counter
+from functools import lru_cache
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -276,6 +278,10 @@ def load_pdf(path: Path, data: bytes) -> ParsedDocument:
         name, page_blocks, score = candidates[0]
         if len(candidates) > 1 and candidates[1][2] + 0.05 < score:
             name, page_blocks, score = candidates[1]
+        if mu_doc is not None and _needs_ocr(page_blocks, mu_doc[i - 1]):
+            ocr_text = ocr_page(mu_doc[i - 1])
+            if ocr_text:
+                name, page_blocks = "ocr", _lines_to_blocks(ocr_text.splitlines(), i)
         blocks.extend(page_blocks)
         extractor_used.append(name)
 
@@ -291,6 +297,58 @@ def load_pdf(path: Path, data: bytes) -> ParsedDocument:
         num_pages=len(reader.pages),
         meta=meta,
     )
+
+
+# -- OCR for scanned pages -----------------------------------------------------
+OCR_LANG = os.getenv("PYXON_OCR_LANG", "ara+eng")
+
+
+@lru_cache(maxsize=1)
+def ocr_available() -> bool:
+    """True when OCR can run: pytesseract installed, the tesseract binary on PATH (or at
+    TESSERACT_CMD) and the Arabic language data present. Disable with PYXON_OCR=0."""
+    if os.getenv("PYXON_OCR", "1") == "0":
+        return False
+    try:
+        import pytesseract
+    except ImportError:
+        return False
+    if os.getenv("TESSERACT_CMD"):
+        pytesseract.pytesseract.tesseract_cmd = os.environ["TESSERACT_CMD"]
+    elif os.name == "nt" and not shutil.which("tesseract"):
+        default = Path(r"C:\Program Files\Tesseract-OCR\tesseract.exe")
+        if default.exists():
+            pytesseract.pytesseract.tesseract_cmd = str(default)
+    try:
+        langs = set(pytesseract.get_languages(config=""))
+    except Exception:
+        return False
+    return all(lang in langs for lang in OCR_LANG.split("+"))
+
+
+def _needs_ocr(page_blocks: list, mu_page) -> bool:
+    """A page with (almost) no text layer but with images is a scan."""
+    text_len = sum(len(b.text.strip()) for b in page_blocks)
+    return text_len < 20 and bool(mu_page.get_images()) and ocr_available()
+
+
+def ocr_page(mu_page, dpi: int = 300) -> str:
+    """Render one PDF page and read it with Tesseract (Arabic + English by default). Tesseract
+    returns Arabic in logical order, so the text indexes like any other page."""
+    import io
+
+    import pytesseract
+    from PIL import Image
+
+    pix = mu_page.get_pixmap(dpi=dpi)
+    img = Image.open(io.BytesIO(pix.tobytes("png")))
+    text = pytesseract.image_to_string(img, lang=OCR_LANG, config="--psm 6")
+    # drop the bidi control marks (LRM/RLM/embeddings) Tesseract puts around mixed-direction text
+    text = re.sub("[\u200e\u200f\u202a-\u202e\u2066-\u2069]", "", text)
+    lines = [ln.strip() for ln in text.splitlines()]
+    text = "\n".join(ln for ln in lines if ln)
+    # a blank or purely graphical page makes Tesseract emit a few stray letters: treat as no text
+    return text if sum(ch.isalpha() for ch in text) >= 10 else ""
 
 
 def _table_to_text(table) -> str:
@@ -419,6 +477,12 @@ def load_document(path: str | Path, encoding: str | None = None) -> ParsedDocume
             f"({type(exc).__name__})."
         ) from exc
     if not parsed.text.strip():
-        hint = " It looks like a scanned/image-only PDF; it needs OCR first." if ext == ".pdf" else ""
+        if ext != ".pdf":
+            hint = ""
+        elif ocr_available():
+            hint = " It looks like a scanned/image-only PDF and OCR found no readable text in it."
+        else:
+            hint = (" It looks like a scanned/image-only PDF; install Tesseract with Arabic data "
+                    "(and `pip install pytesseract`) to read it with OCR.")
         raise EmptyDocumentError(f"No text could be extracted from {path.name}.{hint}")
     return parsed

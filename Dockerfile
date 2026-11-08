@@ -1,7 +1,8 @@
 FROM python:3.11-slim
 
-# LibreOffice is only needed for legacy .doc files
+# LibreOffice reads legacy .doc files; Tesseract (with Arabic data) reads scanned PDFs
 RUN apt-get update && apt-get install -y --no-install-recommends libreoffice-writer fonts-dejavu \
+       tesseract-ocr tesseract-ocr-ara tesseract-ocr-eng \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app

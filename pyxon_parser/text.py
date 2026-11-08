@@ -26,8 +26,8 @@ STRUCTURAL = {"chapter", "section", "part", "فصل", "الفصل", "باب", "�
 STOPWORDS = ENGLISH_STOPWORDS | ARABIC_STOPWORDS | STRUCTURAL
 
 # Bump whenever content_tokens() changes: a stored index built with an older tokenizer is then
-# rebuilt from the chunk texts on open (v2: af'al broken plurals also indexed as singular).
-LEXICAL_VERSION = 2
+# rebuilt from the chunk texts on open (v2: af'al broken plurals; v3: light stemming).
+LEXICAL_VERSION = 3  # v3: light Arabic stemming
 
 
 def split_sentences(text: str) -> list[str]:
@@ -40,7 +40,10 @@ def tokenize(text: str) -> list[str]:
     return _TOKEN_RE.findall(normalize_for_index(text))
 
 
-def content_tokens(text: str) -> list[str]:
+def token_forms(text: str) -> list[tuple[str, list[str]]]:
+    """(word, extra forms) per content word. The word is normalized and loses the Arabic definite
+    article; the extra forms of an Arabic word are its light stem and broken-plural singular
+    (e.g. "للمياه" -> "ميا", "الأمطار" -> "مطر"), which let different surface forms share a term."""
     out = []
     for t in tokenize(text):
         is_arabic = "\u0600" <= t[0] <= "\u06FF"
@@ -51,11 +54,68 @@ def content_tokens(text: str) -> list[str]:
             t = t[2:]
         elif t.startswith(("وال", "بال", "فال", "كال")) and len(t) > 5:
             t = t[3:]
-        out.append(t)
-        singular = broken_plural_singular(t) if is_arabic else None
-        if singular:
-            out.append(singular)
+        extra: list[str] = []
+        if is_arabic and STEM_MODE:
+            forms = {light_stem(t), broken_plural_singular(t)}
+            if STEM_MODE == "isri":
+                forms.add(_isri(t))
+            extra = sorted(x for x in forms if x and x != t)
+        out.append((t, extra))
     return out
+
+
+def content_tokens(text: str, expand: bool = True) -> list[str]:
+    """Content words (see ``token_forms``); with ``expand`` the extra Arabic forms follow each word.
+    Queries use the expanded list; keywords, summaries, the term graph and the hashing embedder use
+    ``expand=False`` so stems do not distort their statistics."""
+    out = []
+    for t, extra in token_forms(text):
+        out.append(t)
+        if expand:
+            out.extend(extra)
+    return out
+
+
+def index_fields(text: str) -> tuple[str, str]:
+    """The two keyword-index columns: exact words, and the extra Arabic forms (weighted lower in
+    BM25, so an exact match still outranks a stem-only match)."""
+    forms = token_forms(text)
+    return " ".join(t for t, _ in forms), " ".join(x for _, extra in forms for x in extra)
+
+
+# "light" (default): light stemming + af'al broken plurals. "isri": also the ISRI root (tested, see
+# README: it recalls more but adds noise). "" disables expansion. Override with PYXON_ARABIC_STEM.
+STEM_MODE = __import__("os").getenv("PYXON_ARABIC_STEM", "light")
+_PREFIXES = ("وال", "بال", "كال", "فال", "لل", "ال")
+_SUFFIXES = ("ها", "ان", "ات", "ون", "ين", "يه", "ه", "ي")
+
+
+def light_stem(token: str) -> str:
+    """Light Arabic stemmer in the style of Larkey et al.'s Light10: drop a leading و, one
+    article-like prefix (ال، لل، بال ...) and the common suffixes (ات، ون، ين، ها، ة ...), keeping at
+    least two letters. Works on normalized text (ة is already ه, ى is already ي)."""
+    t = token
+    if len(t) > 3 and t[0] == "و":
+        t = t[1:]
+    for p in _PREFIXES:
+        if t.startswith(p) and len(t) - len(p) >= 2:
+            t = t[len(p):]
+            break
+    for suf in _SUFFIXES:
+        if t.endswith(suf) and len(t) - len(suf) >= 2:
+            t = t[: -len(suf)]
+    return t
+
+
+def _isri(token: str) -> str | None:
+    try:
+        from nltk.stem.isri import ISRIStemmer
+    except ImportError:
+        return None
+    global _ISRI
+    if "_ISRI" not in globals():
+        _ISRI = ISRIStemmer()
+    return _ISRI.stem(token)
 
 
 def broken_plural_singular(token: str) -> str | None:
@@ -75,7 +135,7 @@ def count_tokens(text: str) -> int:
 
 def top_keywords(text: str, k: int = 10, corpus_df: Counter | None = None, n_docs: int = 1) -> list[str]:
     """TF (or TF-IDF when document frequencies are supplied) keyword ranking."""
-    tf = Counter(content_tokens(text))
+    tf = Counter(content_tokens(text, expand=False))
     if not tf:
         return []
     if corpus_df:

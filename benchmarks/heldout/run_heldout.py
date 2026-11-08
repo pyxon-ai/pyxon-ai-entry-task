@@ -51,24 +51,7 @@ def main() -> None:
     print(f"strategy {ok}/{len(spec['expected_strategy'])}")
 
     # 2. retrieval
-    parser = PyxonParser(embedder=embedder)
-    for name in spec["corpus"]:
-        parser.ingest(DOCS / name)
-    by_kind: dict[str, list] = defaultdict(list)
-    wrong_file: list[float] = []  # share of returned results that come from another document (noise)
-    misses = []
-    for q in spec["queries"]:
-        res = parser.search(q["query"], k=5)
-        ev = normalize_for_index(q["evidence"])
-        ranks = [i for i, r in enumerate(res) if r.filename == q["file"] and ev in normalize_for_index(r.text)]
-        if res:
-            wrong_file.append(sum(r.filename != q["file"] for r in res) / len(res))
-        first = ranks[0] if ranks else None
-        by_kind[q["kind"]].append(first)
-        by_kind["all"].append(first)
-        if first is None or first > 0:
-            top = res[0].filename if res else "—"
-            misses.append(f"| {q['id']} | {q['kind']} | {q['query']} | {'not in top 5' if first is None else f'rank {first + 1}'} | {top} |")
+    by_kind, noise, misses = evaluate_retrieval(embedder, spec)
     lines.append("## 2. Retrieval (hybrid, k=5)\n\n| Query kind | n | Hit@1 | Hit@3 | Hit@5 | MRR |\n|---|---|---|---|---|---|")
     for kind in ["lexical", "paraphrase", "cross", "all"]:
         firsts = by_kind.get(kind, [])
@@ -79,7 +62,6 @@ def main() -> None:
         mrr = statistics.fmean(0 if f is None else 1 / (f + 1) for f in firsts)
         lines.append(f"| {kind} | {n} | {h(1):.2f} | {h(3):.2f} | {h(5):.2f} | {mrr:.2f} |")
         print(f"{kind:10} n={n:2} hit@1={h(1):.2f} hit@3={h(3):.2f} mrr={mrr:.2f}")
-    noise = statistics.fmean(wrong_file) if wrong_file else 0.0
     lines.append(f"\nNoise: {noise:.0%} of returned results come from a different document than the answer.")
     print(f"noise      {noise:.0%} of returned results are from another document")
     if misses:
@@ -99,6 +81,35 @@ def main() -> None:
 
     (HERE / "results.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
     print("\n".join(lines[-12:]))
+
+
+def evaluate_retrieval(embedder, spec: dict, k: int = 5):
+    """Ingest the held-out corpus with ``embedder`` and score every query.
+    Returns (first-hit rank per query kind, noise share, rows for queries missed at rank 1)."""
+    parser = PyxonParser(embedder=embedder)
+    for name in spec["corpus"]:
+        parser.ingest(DOCS / name)
+    by_kind: dict[str, list] = defaultdict(list)
+    wrong_file: list[float] = []  # share of returned results that come from another document (noise)
+    misses = []
+    for q in spec["queries"]:
+        res = parser.search(q["query"], k=k)
+        ev = normalize_for_index(q["evidence"])
+        ranks = [i for i, r in enumerate(res) if r.filename == q["file"] and ev in normalize_for_index(r.text)]
+        if res:
+            wrong_file.append(sum(r.filename != q["file"] for r in res) / len(res))
+        first = ranks[0] if ranks else None
+        by_kind[q["kind"]].append(first)
+        by_kind["all"].append(first)
+        if first is None or first > 0:
+            top = res[0].filename if res else "—"
+            misses.append(f"| {q['id']} | {q['kind']} | {q['query']} | {'not in top 5' if first is None else f'rank {first + 1}'} | {top} |")
+    parser.close()
+    return by_kind, (statistics.fmean(wrong_file) if wrong_file else 0.0), misses
+
+
+def hit_at(firsts: list, k: int) -> float:
+    return sum(f is not None and f < k for f in firsts) / len(firsts) if firsts else 0.0
 
 
 if __name__ == "__main__":
