@@ -48,8 +48,11 @@ class HybridRetriever:
         # PYXON_VECTOR_MIN_SIM; the score of every hit is shown in the demo to help calibrate it.
         import os
 
-        self.vector_min_sim = float(os.getenv("PYXON_VECTOR_MIN_SIM", "0.5"))
-        self.vector_keep_rank = int(os.getenv("PYXON_VECTOR_KEEP_RANK", "0"))  # 0 = no rank limit
+        # Defaults calibrated on the held-out set with multilingual MiniLM (see README): keeping the
+        # vector search's top 2 (with a 0.15 cosine floor) gave paraphrase Hit@3 0.86 and 22% noise,
+        # versus 1.00 / 34% with no filter and 0.57 / 17% with a 0.5 cosine floor.
+        self.vector_min_sim = float(os.getenv("PYXON_VECTOR_MIN_SIM", "0.15"))
+        self.vector_keep_rank = int(os.getenv("PYXON_VECTOR_KEEP_RANK", "2"))  # 0 = no rank limit
 
     def _vector(self, query: str, k: int, levels: list[int], doc_ids) -> list[tuple[str, float]]:
         clauses = [{"level": {"$in": levels}}]
@@ -125,9 +128,9 @@ class HybridRetriever:
                 if len(sources[cid]) > 1:            # confirmed by several retrievers
                     return True
                 if neural and "vector" in sources[cid]:
-                    # vector-only hit from a neural model: trust its cosine, not its rank. Calibrated
-                    # on the demo (multilingual MiniLM): right answers found only semantically score
-                    # >= 0.5-0.7, unrelated chunks stay below ~0.4, so rank alone lets noise through.
+                    # vector-only hit from a neural model: keep the semantic retriever's top hits
+                    # (a paraphrase has no shared words, so only the vector search can find it),
+                    # except very weak ones.
                     rank_ok = not self.vector_keep_rank or sources[cid]["vector"] <= self.vector_keep_rank
                     return rank_ok and raw[cid]["vector"] >= self.vector_min_sim
                 return sc >= min_relative_score * best

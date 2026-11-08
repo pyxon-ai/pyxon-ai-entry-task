@@ -120,16 +120,28 @@ python -m benchmarks.heldout.run_heldout     # writes benchmarks/heldout/results
 |---|---|---|
 | Strategy selection | **8/8** | **8/8** |
 | Questions sharing words with the answer (n=20) | Hit@1 0.95 · Hit@3 1.00 | Hit@1 0.90 · Hit@3 1.00 |
-| Paraphrased questions (n=7) | Hit@1 0.29 · Hit@3 0.29 | Hit@1 0.43 · **Hit@3 1.00** |
+| Paraphrased questions (n=7) | Hit@1 0.29 · Hit@3 0.29 | Hit@1 0.43 · **Hit@3 0.86** |
 | English question about an Arabic document (n=1) | miss | **rank 1** |
-| All 28 questions | Hit@1 0.75 · Hit@3 0.79 · MRR 0.77 | Hit@1 0.79 · **Hit@3 1.00** · MRR 0.88 |
+| All 28 questions | Hit@1 0.75 · Hit@3 0.79 · MRR 0.77 | Hit@1 0.79 · **Hit@3 0.96** · MRR 0.87 |
+| Noise (results from a different document than the answer) | 28% | 22% |
 | Broken files | **7/7** handled | **7/7** handled |
 
-Broken files get a clear `DocumentLoadError` or `EmptyDocumentError` ("scanned PDF, needs OCR"), and nothing is half-indexed. The neural column was measured on a Windows laptop with `paraphrase-multilingual-MiniLM-L12-v2` (quantized ONNX, 235 MB download) at commit `5c89102`, and reproduced independently; the hashing column is from the current code (the DOCX table rows now carry their column headers, which lifted one exact-wording query to rank 1).
+**Calibrating the hybrid filter for the neural model.** A result that only the vector search found is either a genuine paraphrase match or noise; the filter decides which to keep. Measured on the held-out set (Windows laptop, multilingual MiniLM):
+
+| Rule for vector-only hits | Paraphrase Hit@3 | All Hit@3 | Noise |
+|---|---|---|---|
+| keep all | 1.00 | 1.00 | 34% |
+| **vector top-2, cosine ≥ 0.15 (default)** | **0.86** | **0.96** | **22%** |
+| cosine ≥ 0.3 | 0.71 | 0.93 | 25% |
+| cosine ≥ 0.5 | 0.57 | 0.89 | 17% |
+
+The default trades one paraphrase (of seven) for twelve points less noise; set `PYXON_VECTOR_KEEP_RANK=0 PYXON_VECTOR_MIN_SIM=0` to favour recall (e.g. when an LLM reads the results anyway) or `PYXON_VECTOR_MIN_SIM=0.5` to favour precision. The small multilingual model scores Arabic passages low (right answers sometimes below 0.25), which is why a pure cosine threshold does not work well and the hybrid design keeps BM25 for exact Arabic terms.
+
+Broken files get a clear `DocumentLoadError` or `EmptyDocumentError` ("scanned PDF, needs OCR"), and nothing is half-indexed. Both columns are from the current code; the neural column was measured on a Windows laptop with `paraphrase-multilingual-MiniLM-L12-v2` (quantized ONNX, 235 MB download).
 
 Caveat: these documents helped find bugs that are now fixed, so they are no longer a fully untouched test set, and 7 paraphrases plus 1 cross-language question are too few to prove broad generalisation. A frozen, larger set with distractors and unanswerable questions is the next step.
 
-Running it on unseen documents found three real bugs, which are now fixed and covered by tests: legal articles (`المادة 3: …`) were mistaken for form fields, damaged files crashed with library errors, and image-only PDFs were "indexed" with zero chunks. It also shows the main limit of the offline hashing embedder: it matches words, not meaning. Switching to the neural embedder lifts paraphrased questions from Hit@3 0.29 to 1.00 and answers the cross-language question, with no loss on exact-wording questions, because hybrid retrieval still uses BM25 for exact terms and the neural vectors for meaning.
+Running it on unseen documents found three real bugs, which are now fixed and covered by tests: legal articles (`المادة 3: …`) were mistaken for form fields, damaged files crashed with library errors, and image-only PDFs were "indexed" with zero chunks. It also shows the main limit of the offline hashing embedder: it matches words, not meaning. Switching to the neural embedder lifts paraphrased questions from Hit@3 0.29 to 0.86 and answers the cross-language question, with no loss on exact-wording questions, because hybrid retrieval still uses BM25 for exact terms and the neural vectors for meaning.
 
 ## Independent review and fixes
 
@@ -197,6 +209,6 @@ tests/           pytest suite (113 tests)
 * Shadda inside lam-alef ligatures can be lost in some PDFs (89% of harakat recovered from the sample PDF; the bare text is 100% correct). DOCX and TXT are lossless.
 * The scanned-PDF/OCR path (scanned PDFs are rejected with a clear OCR message), table structure in PDFs and image captions are not implemented.
 * Heading detection in plain TXT is heuristic. An LLM-based structure pass could be added for messy documents.
-* With the default offline embedder, paraphrased questions (Hit@3 0.29 on the held-out set) and cross-language questions are weak; `PYXON_EMBEDDER=fastembed` fixes both (Hit@3 1.00). The free Render instance (512 MB RAM) runs the hashing embedder; a paid instance or a machine with ~1 GB RAM can run the neural one.
+* With the default offline embedder, paraphrased questions (Hit@3 0.29 on the held-out set) and cross-language questions are weak; `PYXON_EMBEDDER=fastembed` largely fixes both (paraphrase Hit@3 0.86, cross-language rank 1). The free Render instance (512 MB RAM) runs the hashing embedder; a paid instance or a machine with ~1 GB RAM can run the neural one.
 * The public demo is shared and uses the hashing embedder; per-session isolation and a neural model need a larger instance.
 * With more data: tune the RRF weights and dynamic-chunk thresholds on a labelled set, add a cross-encoder re-ranker (e.g. multilingual BGE reranker) and an Arabic-specific embedder (e.g. a CAMeLBERT-based model).
