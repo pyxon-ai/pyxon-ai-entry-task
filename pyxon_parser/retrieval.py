@@ -11,6 +11,7 @@ import json
 from collections import defaultdict
 from dataclasses import dataclass, field
 
+from .arabic import DIACRITICS_RE
 from .embeddings import Embedder
 from .storage import SQLStore, VectorStore
 from .text import content_tokens
@@ -127,8 +128,16 @@ class HybridRetriever:
                 key = r["normalized_text"].replace(" ", "")
                 dup = next((i for i, other in enumerate(keys) if _same_passage(key, other)), None)
                 if dup is not None:
-                    if r["filename"] not in results[dup].also_in and r["filename"] != results[dup].filename:
-                        results[dup].also_in.append(r["filename"])
+                    kept = results[dup]
+                    if len(DIACRITICS_RE.findall(r["text"])) > len(DIACRITICS_RE.findall(kept.text)):
+                        # show the copy with the most harakat (e.g. the TXT, not a PDF that lost
+                        # some marks); keep the rank and retriever evidence of the better hit
+                        kept.also_in.append(kept.filename)
+                        kept.text, kept.filename, kept.chunk_id = r["text"], r["filename"], cid
+                        kept.document_id, kept.section, kept.page = r["document_id"], r["section"] or "", r["page"]
+                    elif r["filename"] != kept.filename:
+                        kept.also_in.append(r["filename"])
+                    kept.also_in = [f for f in dict.fromkeys(kept.also_in) if f != kept.filename]
                     continue
                 keys.append(key)
             results.append(SearchResult(
@@ -136,9 +145,8 @@ class HybridRetriever:
                 document_id=r["document_id"], section=r["section"] or "", level=r["level"],
                 page=r["page"], sources=sources[cid],
             ))
-            if len(results) == k:
-                break
-        return results
+        # keep scanning past k so duplicates of the top hits are still recorded in also_in
+        return results[:k]
 
 
 def _same_passage(a: str, b: str, threshold: float = 0.95) -> bool:

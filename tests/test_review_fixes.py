@@ -270,3 +270,6 @@ def test_same_passage_from_two_files_is_shown_once():
     assert len(collapsed) == 1
     assert {collapsed[0].filename, *collapsed[0].also_in} == {"water_ar.txt", "water_ar.pdf"}
     assert len(answering(p.search("ما هي علامات الجفاف؟", k=5, collapse_duplicates=False))) == 2
+    # whichever copy ranks first, the fully vocalized TXT text is the one shown
+    top = p.search("حَيٌّ", k=1)[0]
+    assert top.filename == "water_ar.txt" and "حَيٌّ" in top.text and top.also_in == ["water_ar.pdf"]
