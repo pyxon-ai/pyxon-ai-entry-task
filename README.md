@@ -77,6 +77,8 @@ Configuration (environment variables):
 
 ## Live demo
 
+**🔗 https://pyxon-document-parser-1n4n.onrender.com** (free tier: the first load after a quiet period takes about a minute while the server wakes up)
+
 The Gradio app (`app.py`) has six tabs: parse (upload, analysis, chunks, RAPTOR tree), search (pick a retriever), ask (RAG), SQL explorer, library and benchmark results. The sample corpus loads at startup, and the Arabic files with harakat are one click away.
 
 **Deploying (free) on Render:** New → Web Service → connect this repository → Language **Docker** → Instance type **Free**. The included `Dockerfile` installs LibreOffice (for `.doc` files) and starts the app on the port Render provides. On the free tier the service sleeps after 15 minutes without traffic, so the first request after that takes about a minute while it wakes up. The same `Dockerfile` works on Railway, Fly.io, Google Cloud Run or a Docker Space on Hugging Face.
