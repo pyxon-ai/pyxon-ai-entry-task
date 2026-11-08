@@ -184,8 +184,8 @@ with gr.Blocks(title="Pyxon AI Document Parser") as demo:
                 go = gr.Button("Parse & index", variant="primary")
                 # the upload box takes multiple files, so each example value must be a list
                 gr.Examples([[[str(SAMPLES / n)]] for n in
-                             ["water_ar.pdf", "water_ar.txt", "coffee_history.docx", "employee_form_ar.doc", "inspection_report.pdf"]],
-                            inputs=[files], label="Sample files (Arabic with harakat, English, forms)")
+                             ["water_ar.pdf", "water_ar.txt", "coffee_history.docx", "employee_form_ar.doc", "inspection_report.pdf", "scanned_notice_ar.pdf"]],
+                            inputs=[files], label="Sample files (Arabic with harakat, English, forms, a scanned Arabic notice read with OCR)")
         report = gr.Markdown()
         with gr.Accordion("Chunks", open=True):
             chunks_html = gr.HTML()
