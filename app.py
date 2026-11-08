@@ -128,8 +128,12 @@ def run_sql(sql):
 
 def delete_doc(doc_id):
     try:
-        parser.delete(int(doc_id))
-        return library_table(), f"Deleted document {int(doc_id)}."
+        doc_id = int(doc_id or 0)
+        doc = parser.sql.get_document(doc_id)
+        if doc is None:
+            return library_table(), f"⚠️ No document with id {doc_id}. Use an id from the table below."
+        parser.delete(doc_id)
+        return library_table(), f"Deleted document {doc_id} ({doc['filename']})."
     except Exception as exc:
         return library_table(), f"⚠️ {exc}"
 
