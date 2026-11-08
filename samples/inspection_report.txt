@@ -1,0 +1,65 @@
+Quarterly Equipment Inspection Report - Plant B
+
+Inspection ID: INS-2041
+Equipment: Air Compressor AC-12
+Location: Building 3, Bay 2
+Inspector: R. Haddad
+Date: 2025-01-14
+Status: Passed
+Notes: Pressure relief valve tested at 150 psi. Filters replaced. No leaks detected.
+
+Inspection ID: INS-2042
+Equipment: Forklift FL-07
+Location: Warehouse North
+Inspector: L. Nasser
+Date: 2025-01-15
+Status: Failed
+Notes: Hydraulic hose on the mast is cracked and leaking fluid. Forklift tagged out of service until the hose is replaced.
+
+Inspection ID: INS-2043
+Equipment: Industrial Boiler BL-02
+Location: Utility Room
+Inspector: R. Haddad
+Date: 2025-01-16
+Status: Passed
+Notes: Water level gauge and low-water cutoff operating correctly. Burner flame pattern normal.
+
+Inspection ID: INS-2044
+Equipment: Conveyor Belt CV-31
+Location: Packing Line 1
+Inspector: S. Khoury
+Date: 2025-01-17
+Status: Conditional
+Notes: Belt tracking slightly off centre. Emergency stop cord functional. Re-inspect within 30 days.
+
+Inspection ID: INS-2045
+Equipment: Backup Generator GN-05
+Location: Exterior Pad East
+Inspector: L. Nasser
+Date: 2025-01-20
+Status: Passed
+Notes: Load test completed for 2 hours at 80 percent load. Fuel tank at 95 percent.
+
+Inspection ID: INS-2046
+Equipment: Overhead Crane OC-01
+Location: Assembly Hall
+Inspector: S. Khoury
+Date: 2025-01-21
+Status: Failed
+Notes: Wire rope shows broken strands near the hook block. Crane locked out pending rope replacement.
+
+Inspection ID: INS-2047
+Equipment: Chiller Unit CH-09
+Location: Roof Level
+Inspector: R. Haddad
+Date: 2025-01-22
+Status: Passed
+Notes: Refrigerant pressure within range. Condenser coils cleaned.
+
+Inspection ID: INS-2048
+Equipment: Fire Pump FP-03
+Location: Pump House
+Inspector: L. Nasser
+Date: 2025-01-23
+Status: Passed
+Notes: Weekly churn test completed. Pump reached rated pressure in 12 seconds.

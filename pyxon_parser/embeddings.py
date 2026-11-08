@@ -1,0 +1,104 @@
+"""Embedding backends.
+
+``get_embedder()`` returns the best backend available:
+
+1. ``SentenceTransformerEmbedder`` - multilingual neural model
+   (default ``intfloat/multilingual-e5-small``, strong on Arabic) when
+   ``sentence-transformers`` is installed and the model can be loaded.
+2. ``HashingEmbedder`` - a dependency-light fallback: character n-grams
+   (2-5, word-boundary aware) + word unigrams/bigrams hashed into a fixed
+   space with sublinear TF and L2 normalization. It is stateless (no fit
+   step), so documents can be added incrementally to the vector DB, and it
+   runs on normalized text, so it is diacritic- and hamza-insensitive.
+
+Set ``PYXON_EMBEDDER=hashing`` or ``PYXON_EMBEDDER=<hf model name>`` to force one.
+"""
+from __future__ import annotations
+
+import logging
+import os
+from functools import lru_cache
+
+import numpy as np
+
+from .arabic import normalize_for_index
+from .text import content_tokens
+
+log = logging.getLogger(__name__)
+
+
+class Embedder:
+    name: str = "base"
+    dim: int = 0
+
+    def embed(self, texts: list[str], *, is_query: bool = False) -> np.ndarray:
+        raise NotImplementedError
+
+    def embed_one(self, text: str, *, is_query: bool = False) -> np.ndarray:
+        return self.embed([text], is_query=is_query)[0]
+
+
+class HashingEmbedder(Embedder):
+    def __init__(self, dim: int = 2048):
+        from sklearn.feature_extraction.text import HashingVectorizer
+
+        self.dim = dim
+        self.name = f"hashing-char2-5+word1-2-{dim}"
+        # alternate_sign=False keeps vectors non-negative -> cosine in [0, 1].
+        self._char = HashingVectorizer(
+            analyzer="char_wb", ngram_range=(2, 5), n_features=dim, alternate_sign=False, norm=None
+        )
+        self._word = HashingVectorizer(
+            analyzer=lambda s: self._word_ngrams(s), n_features=dim, alternate_sign=False, norm=None
+        )
+
+    @staticmethod
+    def _word_ngrams(text: str) -> list[str]:
+        toks = content_tokens(text)
+        return toks + [f"{a}_{b}" for a, b in zip(toks, toks[1:])]
+
+    def embed(self, texts: list[str], *, is_query: bool = False) -> np.ndarray:
+        norm = [normalize_for_index(t) for t in texts]
+        char = self._char.transform(norm)
+        word = self._word.transform(texts)
+        char.data = np.log1p(char.data)
+        word.data = np.log1p(word.data)
+        mat = (0.6 * char + 1.4 * word).toarray().astype(np.float32)
+        lengths = np.linalg.norm(mat, axis=1, keepdims=True)
+        lengths[lengths == 0] = 1.0
+        return mat / lengths
+
+
+class SentenceTransformerEmbedder(Embedder):
+    def __init__(self, model_name: str = "intfloat/multilingual-e5-small"):
+        from sentence_transformers import SentenceTransformer
+
+        self.model = SentenceTransformer(model_name)
+        self.name = model_name
+        self.dim = self.model.get_sentence_embedding_dimension()
+        self._e5 = "e5" in model_name.lower()
+
+    def embed(self, texts: list[str], *, is_query: bool = False) -> np.ndarray:
+        if self._e5:
+            prefix = "query: " if is_query else "passage: "
+            texts = [prefix + t for t in texts]
+        vecs = self.model.encode(texts, normalize_embeddings=True, show_progress_bar=False)
+        return np.asarray(vecs, dtype=np.float32)
+
+
+@lru_cache(maxsize=4)
+def get_embedder(choice: str | None = None) -> Embedder:
+    choice = choice or os.getenv("PYXON_EMBEDDER", "auto")
+    if choice == "hashing":
+        return HashingEmbedder()
+    model = "intfloat/multilingual-e5-small" if choice == "auto" else choice
+    try:
+        return SentenceTransformerEmbedder(model)
+    except Exception as exc:  # missing package, no network, ...
+        if choice != "auto":
+            log.warning("Could not load %s (%s); falling back to hashing embedder", model, exc)
+        return HashingEmbedder()
+
+
+def cosine_matrix(a: np.ndarray, b: np.ndarray) -> np.ndarray:
+    return a @ b.T
