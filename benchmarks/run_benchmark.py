@@ -21,6 +21,7 @@ from __future__ import annotations
 import argparse
 import difflib
 import json
+import sys
 import math
 import platform
 import statistics
@@ -389,6 +390,11 @@ def to_markdown(res: dict) -> str:
 
 
 def main() -> None:
+    # Windows consoles default to cp1252 when output is piped; Arabic would crash print()
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    except AttributeError:
+        pass
     ap = argparse.ArgumentParser()
     ap.add_argument("--quick", action="store_true")
     ap.add_argument("--embedder", default=None, help="'hashing' or a sentence-transformers model name")

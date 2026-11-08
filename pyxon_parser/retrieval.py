@@ -49,6 +49,7 @@ class HybridRetriever:
         import os
 
         self.vector_min_sim = float(os.getenv("PYXON_VECTOR_MIN_SIM", "0.5"))
+        self.vector_keep_rank = int(os.getenv("PYXON_VECTOR_KEEP_RANK", "0"))  # 0 = no rank limit
 
     def _vector(self, query: str, k: int, levels: list[int], doc_ids) -> list[tuple[str, float]]:
         clauses = [{"level": {"$in": levels}}]
@@ -127,7 +128,8 @@ class HybridRetriever:
                     # vector-only hit from a neural model: trust its cosine, not its rank. Calibrated
                     # on the demo (multilingual MiniLM): right answers found only semantically score
                     # >= 0.5-0.7, unrelated chunks stay below ~0.4, so rank alone lets noise through.
-                    return raw[cid]["vector"] >= self.vector_min_sim
+                    rank_ok = not self.vector_keep_rank or sources[cid]["vector"] <= self.vector_keep_rank
+                    return rank_ok and raw[cid]["vector"] >= self.vector_min_sim
                 return sc >= min_relative_score * best
 
             filtered = [(cid, sc) for cid, sc in ranked if keep(cid, sc)]

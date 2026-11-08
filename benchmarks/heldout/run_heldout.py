@@ -10,6 +10,7 @@ Writes benchmarks/heldout/results.md.
 from __future__ import annotations
 
 import json
+import sys
 import statistics
 import time
 from collections import defaultdict
@@ -26,6 +27,11 @@ DOCS = HERE / "docs"
 
 
 def main() -> None:
+    # Windows consoles default to cp1252 when output is piped; Arabic would crash print()
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    except AttributeError:
+        pass
     spec = json.loads((HERE / "queries.json").read_text(encoding="utf-8"))
     embedder = get_embedder()
     lines = [f"# Held-out evaluation\n\nEmbedder: `{embedder.name}` · {time.strftime('%Y-%m-%d')}\n",
