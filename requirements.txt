@@ -8,7 +8,7 @@ networkx>=3.2
 chromadb==0.5.23
 requests>=2.31
 # demo
-gradio>=6.0
+gradio>=6.0,<6.18  # newer releases need huggingface-hub>=1.0, which clashes with chromadb 0.5.x
 pandas>=2.1
 tabulate>=0.9
 # optional: neural multilingual embeddings (needs Hugging Face access)
