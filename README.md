@@ -116,7 +116,7 @@ python -m benchmarks.heldout.run_heldout     # writes benchmarks/heldout/results
 |---|---|
 | Strategy selection | **8/8** |
 | Retrieval, questions sharing words with the answer (n=20) | Hit@1 **0.90**, Hit@3 **1.00** |
-| Retrieval, paraphrased questions (n=7) | Hit@1 0.29, Hit@3 0.43 |
+| Retrieval, paraphrased questions (n=7) | Hit@1 0.29, Hit@3 0.29 |
 | Retrieval, English question about an Arabic document (n=1) | miss |
 | Broken files | **7/7** handled: clear `DocumentLoadError` / `EmptyDocumentError` ("scanned PDF, needs OCR"), nothing half-indexed |
 
