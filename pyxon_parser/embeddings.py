@@ -11,7 +11,10 @@
    step), so documents can be added incrementally to the vector DB, and it
    runs on normalized text, so it is diacritic- and hamza-insensitive.
 
-Set ``PYXON_EMBEDDER=hashing`` or ``PYXON_EMBEDDER=<hf model name>`` to force one.
+2b. ``FastEmbedEmbedder`` - the same kind of multilingual neural model run through
+   ONNX Runtime (``pip install fastembed``), much lighter than PyTorch.
+
+Set ``PYXON_EMBEDDER=hashing``, ``fastembed`` or ``<hf model name>`` to force one.
 """
 from __future__ import annotations
 
@@ -86,11 +89,43 @@ class SentenceTransformerEmbedder(Embedder):
         return np.asarray(vecs, dtype=np.float32)
 
 
+class FastEmbedEmbedder(Embedder):
+    """Neural multilingual embeddings via ONNX Runtime (no PyTorch needed).
+
+    Default model: paraphrase-multilingual-MiniLM-L12-v2 (quantized, ~220 MB, 384-d, 50+ languages
+    incl. Arabic). Understands paraphrases and cross-language queries, which the hashing
+    embedder cannot. Install with ``pip install fastembed``; the model downloads on first use.
+    """
+
+    DEFAULT = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+
+    def __init__(self, model_name: str | None = None):
+        from fastembed import TextEmbedding
+
+        self.name = model_name or self.DEFAULT
+        self.model = TextEmbedding(model_name=self.name)
+        self.dim = len(next(iter(self.model.embed(["probe"]))))
+
+    def embed(self, texts: list[str], *, is_query: bool = False) -> np.ndarray:
+        vecs = np.asarray(list(self.model.embed(texts)), dtype=np.float32)
+        norms = np.linalg.norm(vecs, axis=1, keepdims=True)
+        norms[norms == 0] = 1.0
+        return vecs / norms
+
+
 @lru_cache(maxsize=4)
 def get_embedder(choice: str | None = None) -> Embedder:
+    """``hashing`` | ``fastembed`` | ``fastembed:<model>`` | ``auto`` | <sentence-transformers model>."""
     choice = choice or os.getenv("PYXON_EMBEDDER", "auto")
     if choice == "hashing":
         return HashingEmbedder()
+    if choice.startswith("fastembed"):
+        model = choice.split(":", 1)[1] if ":" in choice else None
+        try:
+            return FastEmbedEmbedder(model)
+        except Exception as exc:
+            log.warning("Could not load fastembed model (%s); falling back to hashing embedder", exc)
+            return HashingEmbedder()
     model = "intfloat/multilingual-e5-small" if choice == "auto" else choice
     try:
         return SentenceTransformerEmbedder(model)

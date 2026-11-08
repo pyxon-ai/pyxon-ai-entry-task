@@ -18,14 +18,14 @@ import statistics
 from dataclasses import asdict, dataclass, field
 
 from .arabic import arabic_ratio, detect_language, diacritic_density, strip_diacritics, text_direction
-from .loaders import Block, ParsedDocument
+from .loaders import STRUCTURAL_HEADING_RE, Block, ParsedDocument
 from .text import content_tokens, count_tokens, split_sentences, top_keywords
 
 _HEADING_PATTERNS = [
     re.compile(r"^#{1,6}\s+\S"),  # markdown
-    re.compile(r"^(chapter|section|part|appendix)\s+[\w\dIVXLC]+\b", re.I),
+    re.compile(r"^(chapter|section|part|appendix|article)\s+[\w\dIVXLC]+\b", re.I),
     # "الفصل الأول" / "الباب 2" (the keyword must be followed by a word, so a form field like "القسم: المالية" is not a heading)
-    re.compile(r"^(ال)?(فصل|باب|قسم|جزء|مبحث)\s+[^:：\s]|^(ال)?(مقدمة|خاتمة)\b"),
+    STRUCTURAL_HEADING_RE,
     re.compile(r"^(\d+(\.\d+)*|[IVXLC]+)[.)]?\s+\S"),  # "2.1 Title", "IV. Title"
 ]
 _KV_RE = re.compile(r"^[^:：]{1,40}[:：]\s*\S")

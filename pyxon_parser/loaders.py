@@ -16,7 +16,11 @@ from collections import Counter
 from dataclasses import dataclass, field
 from pathlib import Path
 
+import logging
+
 from .arabic import fix_presentation_forms, strip_diacritics
+
+logging.getLogger("pypdf").setLevel(logging.ERROR)  # e.g. "EOF marker not found" on damaged files
 
 SUPPORTED_EXTENSIONS = {".pdf", ".docx", ".doc", ".txt", ".md"}
 
@@ -47,6 +51,25 @@ class UnsupportedFileType(ValueError):
     pass
 
 
+class DocumentLoadError(ValueError):
+    """The file exists but cannot be parsed (damaged, wrong extension, encrypted...)."""
+
+
+class EmptyDocumentError(ValueError):
+    """The file was read but contains no extractable text (e.g. a scanned PDF without OCR)."""
+
+
+# Lines that open a new structural unit: chapters, parts, sections, legal articles.
+# Matched against diacritic-free text. The keyword must be followed by a number/ordinal,
+# so a form field such as "القسم: المالية" is not mistaken for a heading.
+STRUCTURAL_HEADING_RE = re.compile(
+    r"^((ال)?(فصل|باب|قسم|جزء|مبحث|ماده|مادة)\s*[(\[]?\s*[^:\s()]+"
+    r"|(ال)?(مقدمة|مقدمه|خاتمة|خاتمه)\b"
+    r"|(chapter|section|part|article|appendix)\s+[\w.()]+)",
+    re.I,
+)
+
+
 def _sha256(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
@@ -68,8 +91,13 @@ def _split_paragraphs(text: str, page: int | None = None) -> list[Block]:
         if not stripped:
             flush()
             continue
-        # A markdown heading or a short line followed by text stays its own block.
-        if stripped.startswith("#"):
+        # Markdown headings and structural lines ("المادة 3: ...", "Chapter 2") start their own block
+        # even when the paragraph follows on the next line without a blank line.
+        if stripped.startswith("#") or (
+            len(stripped.split()) <= 12
+            and not stripped.endswith((".", "!", "?", "\u061F", "\u060C", ","))
+            and STRUCTURAL_HEADING_RE.match(strip_diacritics(stripped))
+        ):
             flush()
             blocks.append(Block(text=stripped, page=page))
             continue
@@ -104,7 +132,7 @@ def load_txt(path: Path, data: bytes) -> ParsedDocument:
 
 
 _ARABIC_WORD_RE = re.compile(r"[\u0600-\u06FF]+")
-_PDF_HEADING_RE = re.compile(r"^((ال)?(فصل|باب|قسم)\s+[^:\s]|(ال)?(مقدمة|خاتمة)\b|(chapter|section|part)\s+\w+)", re.I)
+_PDF_HEADING_RE = STRUCTURAL_HEADING_RE
 
 
 def arabic_garble_score(text: str) -> float:
@@ -312,6 +340,8 @@ def load_document(path: str | Path) -> ParsedDocument:
     if ext not in SUPPORTED_EXTENSIONS:
         raise UnsupportedFileType(f"Unsupported file type: {ext or '(none)'}")
     data = path.read_bytes()
+    if not data.strip():
+        raise EmptyDocumentError(f"{path.name} is empty.")
     loader = {
         ".pdf": load_pdf,
         ".docx": load_docx,
@@ -319,4 +349,16 @@ def load_document(path: str | Path) -> ParsedDocument:
         ".txt": load_txt,
         ".md": load_txt,
     }[ext]
-    return loader(path, data)
+    try:
+        parsed = loader(path, data)
+    except (UnsupportedFileType, EmptyDocumentError):
+        raise
+    except Exception as exc:  # damaged file, wrong extension, encrypted PDF ...
+        raise DocumentLoadError(
+            f"Could not read {path.name}: the file looks damaged or is not a valid {ext[1:].upper()} file "
+            f"({type(exc).__name__})."
+        ) from exc
+    if not parsed.text.strip():
+        hint = " It looks like a scanned/image-only PDF; it needs OCR first." if ext == ".pdf" else ""
+        raise EmptyDocumentError(f"No text could be extracted from {path.name}.{hint}")
+    return parsed

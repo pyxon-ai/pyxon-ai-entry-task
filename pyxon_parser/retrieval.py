@@ -36,6 +36,11 @@ class HybridRetriever:
                  weights: dict[str, float] | None = None):
         self.sql, self.vectors, self.embedder = sql, vectors, embedder
         self.weights = weights or {"vector": 1.0, "keyword": 1.0, "graph": 0.5}
+        # With a neural embedder a vector-only hit is often a genuine paraphrase match, so its top-2
+        # survive the filler filter; with the lexical hashing embedder they are mostly noise.
+        from .embeddings import HashingEmbedder
+
+        self.keep_top_rank = 0 if isinstance(embedder, HashingEmbedder) else 2
 
     def _vector(self, query: str, k: int, levels: list[int], doc_ids) -> list[tuple[str, float]]:
         clauses = [{"level": {"$in": levels}}]
@@ -75,8 +80,10 @@ class HybridRetriever:
     ) -> list[SearchResult]:
         """mode: 'hybrid' | 'vector' | 'keyword' | 'graph'.
 
-        In hybrid mode, results found by only one retriever are kept only if their fused
-        score is at least ``min_relative_score`` x the top score (set 0 to disable).
+        In hybrid mode, a result found by only one retriever is kept if its fused score is at least
+        ``min_relative_score`` x the top score, or (with a neural embedder) if it is in that
+        retriever's top 2, so a semantic-only paraphrase match survives. Set
+        ``min_relative_score=0`` to disable the filter.
         """
         levels = [0, 1, 2, 3] if include_summaries else [0]
         pool = max(k * 4, 20)
@@ -101,7 +108,9 @@ class HybridRetriever:
             # Drop weak filler: hits only a single retriever found that score far below the best hit.
             best = ranked[0][1]
             ranked = [(cid, sc) for cid, sc in ranked
-                      if len(sources[cid]) > 1 or sc >= min_relative_score * best]
+                      if len(sources[cid]) > 1                     # confirmed by several retrievers
+                      or min(sources[cid].values()) <= self.keep_top_rank  # or a top hit of a semantic retriever
+                      or sc >= min_relative_score * best]
         top = ranked[: k * 2]
         rows = self.sql.get_chunks([cid for cid, _ in top])
         results = []

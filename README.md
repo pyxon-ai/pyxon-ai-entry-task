@@ -47,7 +47,7 @@ My solution to the [Pyxon AI junior engineer entry task](TASK.md): a document pa
 ```bash
 pip install -r requirements.txt          # Python 3.10+
 python app.py                            # demo on http://localhost:7860 (sample docs auto-load)
-pytest -q                                # 36 tests
+pytest                                   # 78 tests (incl. held-out documents and broken files)
 python -m benchmarks.run_benchmark       # writes benchmarks/results/results.{md,json}
 ```
 
@@ -71,7 +71,7 @@ Configuration (environment variables):
 
 | Variable | Default | Meaning |
 |---|---|---|
-| `PYXON_EMBEDDER` | `auto` | `auto` uses `intfloat/multilingual-e5-small` when `sentence-transformers` is installed and the model can be downloaded, and falls back to `hashing` otherwise. You can also pass any sentence-transformers model name |
+| `PYXON_EMBEDDER` | `auto` | `hashing` (lexical, offline), `fastembed` (neural multilingual MiniLM via ONNX: `pip install fastembed`, ~220 MB model download, recommended for paraphrase and cross-language questions), or any sentence-transformers model name. `auto` tries `intfloat/multilingual-e5-small` through sentence-transformers and falls back to `hashing` |
 | `PYXON_DATA_DIR` | `./data` | Where the demo keeps SQLite and Chroma |
 | `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` | none | Turns on LLM answers. `PYXON_LLM_MODEL` and `OPENAI_BASE_URL` are optional |
 
@@ -103,6 +103,25 @@ The Gradio app (`app.py`) has six tabs: parse (upload, analysis, chunks, RAPTOR 
 
 How to read these numbers: the corpus is small (4 documents per corpus, by design so that relevance can be labelled exactly), so retrieval scores are near their ceiling. The hashing embedder is lexical, which is why BM25 is so strong on its own. The benchmark is built so that switching to a neural embedder (`--embedder intfloat/multilingual-e5-small`) or adding harder query sets needs no code changes.
 
+### Held-out evaluation (unseen documents)
+
+The numbers above use documents that were in front of me while I built the parser. To check that it generalises, `benchmarks/heldout/` adds **documents and questions written afterwards, in styles it was not tuned on**: an Arabic data-protection law (المادة 1 … 7), an Arabic news article saved in **Windows-1256**, a fully **vocalized** Arabic story, a **bilingual** EN/AR DOCX with a table, a PDF product manual, a 41-chapter report, and seven **broken files** (corrupt PDF, fake DOCX, empty, whitespace-only, image-only "scanned" PDF, a 6,000-word single line, unknown extension).
+
+```bash
+python -m benchmarks.heldout.build_heldout   # builds the documents
+python -m benchmarks.heldout.run_heldout     # writes benchmarks/heldout/results.md
+```
+
+| Check (hashing embedder) | Result |
+|---|---|
+| Strategy selection | **8/8** |
+| Retrieval, questions sharing words with the answer (n=20) | Hit@1 **0.90**, Hit@3 **1.00** |
+| Retrieval, paraphrased questions (n=7) | Hit@1 0.29, Hit@3 0.43 |
+| Retrieval, English question about an Arabic document (n=1) | miss |
+| Broken files | **7/7** handled: clear `DocumentLoadError` / `EmptyDocumentError` ("scanned PDF, needs OCR"), nothing half-indexed |
+
+Running it on unseen documents found three real bugs, which are now fixed and covered by tests: legal articles (`المادة 3: …`) were mistaken for form fields, damaged files crashed with library errors, and image-only PDFs were "indexed" with zero chunks. It also shows the main limit of the offline hashing embedder: it matches words, not meaning, so **paraphrased and cross-language questions need the neural embedder** (`PYXON_EMBEDDER=fastembed`). The hybrid design keeps BM25 for exact terms and lets the neural vectors handle meaning.
+
 ## Project layout
 
 ```
@@ -120,7 +139,7 @@ pyxon_parser/
   llm.py         Anthropic / OpenAI-compatible client (env-configured)
   pipeline.py    PyxonParser facade
 app.py           Gradio demo
-benchmarks/      queries.json, run_benchmark.py, results/
+benchmarks/      queries.json, run_benchmark.py, results/, heldout/ (unseen-document evaluation)
 samples/         sample corpus (EN/AR, vocalized Arabic, forms) + build script
 tests/           pytest suite
 ```
@@ -147,4 +166,5 @@ tests/           pytest suite
 * Shadda inside lam-alef ligatures can be lost in some PDFs (89% of harakat recovered from the sample PDF; the bare text is 100% correct). DOCX and TXT are lossless.
 * The scanned-PDF/OCR path, table structure in PDFs and image captions are not implemented.
 * Heading detection in plain TXT is heuristic. An LLM-based structure pass could be added for messy documents.
+* With the default offline embedder, paraphrased questions (Hit@1 0.29 on the held-out set) and cross-language questions are weak; use `PYXON_EMBEDDER=fastembed` (neural multilingual) for those. The free Render instance (512 MB RAM) runs the hashing embedder.
 * With more data: tune the RRF weights and dynamic-chunk thresholds on a labelled set, add a cross-encoder re-ranker (e.g. multilingual BGE reranker) and an Arabic-specific embedder (e.g. a CAMeLBERT-based model).
