@@ -79,21 +79,13 @@ Configuration (environment variables):
 
 The Gradio app (`app.py`) has six tabs: parse (upload, analysis, chunks, RAPTOR tree), search (pick a retriever), ask (RAG), SQL explorer, library and benchmark results. The sample corpus loads at startup, and the Arabic files with harakat are one click away.
 
-To deploy on **Hugging Face Spaces** (free): create a Space with the *Gradio* SDK and push this repo to it. `packages.txt` installs LibreOffice for `.doc` files. The Space's README needs the header below. A `Dockerfile` is also included for Docker Spaces, Render or Railway.
-
-```yaml
----
-title: Pyxon Document Parser
-sdk: gradio
-app_file: app.py
----
-```
+**Deploying (free) on Render:** New → Web Service → connect this repository → Language **Docker** → Instance type **Free**. The included `Dockerfile` installs LibreOffice (for `.doc` files) and starts the app on the port Render provides. On the free tier the service sleeps after 15 minutes without traffic, so the first request after that takes about a minute while it wakes up. The same `Dockerfile` works on Railway, Fly.io, Google Cloud Run or a Docker Space on Hugging Face.
 
 ## Benchmarks
 
 `benchmarks/run_benchmark.py` runs five sections. Full output is in [`benchmarks/results/results.md`](benchmarks/results/results.md). The headline numbers below come from the **offline hashing embedder** on a 2-vCPU container:
 
-* **Strategy selection:** 9/9 files get the expected strategy. This holds across formats: the same content as DOCX, PDF and TXT gets the same decision.
+* **Strategy selection:** 9/9 files get the expected strategy (8/8 when LibreOffice is not installed and the `.doc` sample is skipped). This holds across formats: the same content as DOCX, PDF and TXT gets the same decision.
 * **Retrieval** (29 queries: 13 English, 15 Arabic, 1 mixed, including vocalized and bare variants of the same question):
 
   | Corpus | Retriever | Hit@1 | Hit@3 | MRR@5 | nDCG@5 |
