@@ -30,6 +30,7 @@ class SearchResult:
     level: int
     page: int | None
     sources: dict[str, int] = field(default_factory=dict)  # retriever -> rank
+    raw_scores: dict[str, float] = field(default_factory=dict)  # retriever -> its own score (cosine, BM25, graph)
     also_in: list[str] = field(default_factory=list)  # other files holding the same passage
 
 
@@ -43,6 +44,11 @@ class HybridRetriever:
         from .embeddings import HashingEmbedder
 
         self.keep_top_rank = 0 if isinstance(embedder, HashingEmbedder) else 2
+        # ...but only when the semantic match itself is strong (cosine similarity). Override with
+        # PYXON_VECTOR_MIN_SIM; the score of every hit is shown in the demo to help calibrate it.
+        import os
+
+        self.vector_min_sim = float(os.getenv("PYXON_VECTOR_MIN_SIM", "0.5"))
 
     def _vector(self, query: str, k: int, levels: list[int], doc_ids) -> list[tuple[str, float]]:
         clauses = [{"level": {"$in": levels}}]
@@ -100,11 +106,13 @@ class HybridRetriever:
 
         fused: dict[str, float] = defaultdict(float)
         sources: dict[str, dict[str, int]] = defaultdict(dict)
+        raw: dict[str, dict[str, float]] = defaultdict(dict)
         for name, hits in rankings.items():
             w = self.weights.get(name, 1.0)
-            for rank, (cid, _) in enumerate(hits, start=1):
+            for rank, (cid, score) in enumerate(hits, start=1):
                 fused[cid] += w / (RRF_K + rank)
                 sources[cid][name] = rank
+                raw[cid][name] = float(score)
 
         ranked = sorted(fused.items(), key=lambda x: -x[1])
         if len(rankings) > 1 and ranked and min_relative_score > 0:
@@ -112,7 +120,8 @@ class HybridRetriever:
             best = ranked[0][1]
             ranked = [(cid, sc) for cid, sc in ranked
                       if len(sources[cid]) > 1                     # confirmed by several retrievers
-                      or min(sources[cid].values()) <= self.keep_top_rank  # or a top hit of a semantic retriever
+                      or (min(sources[cid].values()) <= self.keep_top_rank   # or a top hit of a semantic
+                          and raw[cid].get("vector", 0.0) >= self.vector_min_sim)  # retriever with a strong match
                       or sc >= min_relative_score * best]
         top = ranked[: k * 4]
         rows = self.sql.get_chunks([cid for cid, _ in top])
@@ -143,7 +152,7 @@ class HybridRetriever:
             results.append(SearchResult(
                 chunk_id=cid, score=round(score, 5), text=r["text"], filename=r["filename"],
                 document_id=r["document_id"], section=r["section"] or "", level=r["level"],
-                page=r["page"], sources=sources[cid],
+                page=r["page"], sources=sources[cid], raw_scores={k: round(v, 3) for k, v in raw[cid].items()},
             ))
         # keep scanning past k so duplicates of the top hits are still recorded in also_in
         return results[:k]
