@@ -29,6 +29,7 @@ class SearchResult:
     level: int
     page: int | None
     sources: dict[str, int] = field(default_factory=dict)  # retriever -> rank
+    also_in: list[str] = field(default_factory=list)  # other files holding the same passage
 
 
 class HybridRetriever:
@@ -77,6 +78,7 @@ class HybridRetriever:
         include_summaries: bool = False,
         doc_ids: list[int] | None = None,
         min_relative_score: float = 0.5,
+        collapse_duplicates: bool = True,
     ) -> list[SearchResult]:
         """mode: 'hybrid' | 'vector' | 'keyword' | 'graph'.
 
@@ -111,16 +113,41 @@ class HybridRetriever:
                       if len(sources[cid]) > 1                     # confirmed by several retrievers
                       or min(sources[cid].values()) <= self.keep_top_rank  # or a top hit of a semantic retriever
                       or sc >= min_relative_score * best]
-        top = ranked[: k * 2]
+        top = ranked[: k * 4]
         rows = self.sql.get_chunks([cid for cid, _ in top])
-        results = []
+        results: list[SearchResult] = []
+        keys: list[str] = []
         for cid, score in top:
             r = rows.get(cid)
             if r is None or r["level"] not in levels:
                 continue
+            if collapse_duplicates:
+                # The same passage indexed from two files (e.g. book.txt and book.pdf) is shown
+                # once, under its best-ranked copy, with the other files listed in ``also_in``.
+                key = r["normalized_text"].replace(" ", "")
+                dup = next((i for i, other in enumerate(keys) if _same_passage(key, other)), None)
+                if dup is not None:
+                    if r["filename"] not in results[dup].also_in and r["filename"] != results[dup].filename:
+                        results[dup].also_in.append(r["filename"])
+                    continue
+                keys.append(key)
             results.append(SearchResult(
                 chunk_id=cid, score=round(score, 5), text=r["text"], filename=r["filename"],
                 document_id=r["document_id"], section=r["section"] or "", level=r["level"],
                 page=r["page"], sources=sources[cid],
             ))
-        return results[:k]
+            if len(results) == k:
+                break
+        return results
+
+
+def _same_passage(a: str, b: str, threshold: float = 0.95) -> bool:
+    """Near-identical normalized texts (diacritics already removed, so a PDF copy that lost a few
+    marks or spaces still matches its TXT original)."""
+    if a == b:
+        return True
+    if not a or not b or min(len(a), len(b)) / max(len(a), len(b)) < threshold:
+        return False
+    from difflib import SequenceMatcher
+
+    return SequenceMatcher(None, a, b, autojunk=False).ratio() >= threshold

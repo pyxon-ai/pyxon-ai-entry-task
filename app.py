@@ -103,7 +103,9 @@ def search(query, mode, k, include_summaries):
         badges = "".join(f'<span class="badge">{name} #{rank}</span>' for name, rank in r.sources.items())
         meta = (f"<b>{i}. {r.filename}</b> · score {r.score} · level {r.level}"
                 + (f" · p.{r.page}" if r.page else "")
-                + (f" · <span dir='auto'>{html.escape(r.section)}</span>" if r.section else "") + f"<br>{badges}")
+                + (f" · <span dir='auto'>{html.escape(r.section)}</span>" if r.section else "")
+                + (f" · also in: {', '.join(html.escape(f) for f in r.also_in)}" if r.also_in else "")
+                + f"<br>{badges}")
         out.append(_chunk_html(r.text, meta))
     return "".join(out)
 

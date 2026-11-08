@@ -40,7 +40,7 @@ My solution to the [Pyxon AI junior engineer entry task](TASK.md): a document pa
 | Arabic | Original text is always stored. A normalized form (no harakat or tatweel; unified أ/إ/آ/ٱ→ا, ى→ي, ة→ه, ؤ/ئ; Arabic-Indic digits; light ال-stemming) is used for embeddings, BM25 and the graph. RTL text is rendered with `dir="auto"` in the demo |
 | Graph RAG (lightweight) | A **term co-occurrence graph** per document: TF-IDF key terms per chunk are nodes, co-occurrence in a chunk is an edge, PageRank gives key concepts. At query time, query terms are expanded **one hop** to related terms. No entity extraction or community summaries |
 | RAPTOR-style tree | Leaf embeddings are clustered with **k-means**, each cluster gets an **extractive** summary (or an LLM summary with `PYXON_LLM_SUMMARIES=1` and an API key), and the process repeats up to a root. Summary nodes are stored as `level ≥ 1` for "collapsed tree" retrieval |
-| Hybrid retrieval | Vector + BM25 + graph rankings fused with weighted **Reciprocal Rank Fusion**. Every hit shows which retrievers found it and at what rank |
+| Hybrid retrieval | Vector + BM25 + graph rankings fused with weighted **Reciprocal Rank Fusion**. Every hit shows which retrievers found it and at what rank. The same passage indexed from two files (e.g. `book.txt` and `book.pdf`) is shown once, with the other file listed under *also in* |
 | RAG integration | `RAGPipeline.ask()` sends corpus-metadata questions to **SQL** through a small intent parser (`query_router.py`): a question goes to SQL only if *every* content word is metadata vocabulary (documents, chunks, counts, languages, file types, chunking strategy, diacritics), so "What is the marketing strategy for Zephyr?" still goes to search. Filters and document scope become a **parameterised** SELECT, and SQLite enforces read-only access with an authorizer. Everything else goes through retrieval, a cited prompt and an LLM (Anthropic or any OpenAI-compatible API via env vars). Without a key, an extractive answer quotes only sentences that cover the question well, or says it could not find the answer |
 
 ## Quick start
@@ -48,7 +48,7 @@ My solution to the [Pyxon AI junior engineer entry task](TASK.md): a document pa
 ```bash
 pip install -r requirements-dev.txt -c constraints.txt   # Python 3.11+; constraints = the tested versions
 python app.py                            # demo on http://localhost:7860 (sample docs auto-load)
-pytest                                   # 112 tests (unit, held-out documents, broken files, review regressions)
+pytest                                   # 113 tests (unit, held-out documents, broken files, review regressions)
 python -m benchmarks.run_benchmark       # writes benchmarks/results/results.{md,json}
 ```
 
@@ -170,7 +170,7 @@ pyxon_parser/
 app.py           Gradio demo
 benchmarks/      queries.json, run_benchmark.py, results/, heldout/ (unseen-document evaluation)
 samples/         sample corpus (EN/AR, vocalized Arabic, forms) + build script
-tests/           pytest suite (112 tests)
+tests/           pytest suite (113 tests)
 .github/         CI: tests on Python 3.11/3.12, held-out evaluation, Docker build
 ```
 

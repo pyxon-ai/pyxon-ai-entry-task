@@ -252,3 +252,21 @@ def test_boundary_metric_rejects_forced_cuts():
     sections = [Section("", 0, [Block(" ".join(["ordinary"] * 300))])]
     chunks = FixedChunker(120, 20).chunk(sections)
     assert _chunk_quality(chunks, sections, HashingEmbedder())["clean_boundary_rate"] < 1
+
+
+def test_same_passage_from_two_files_is_shown_once():
+    from pathlib import Path
+
+    samples = Path(__file__).resolve().parent.parent / "samples"
+    p = PyxonParser()
+    p.ingest(samples / "water_ar.txt")
+    p.ingest(samples / "water_ar.pdf")  # same book; the PDF copy lost some shadda marks
+    from pyxon_parser.arabic import normalize_for_index
+
+    def answering(hits):
+        return [h for h in hits if "علامات الجفاف" in normalize_for_index(h.text)]
+
+    collapsed = answering(p.search("ما هي علامات الجفاف؟", k=5))
+    assert len(collapsed) == 1
+    assert {collapsed[0].filename, *collapsed[0].also_in} == {"water_ar.txt", "water_ar.pdf"}
+    assert len(answering(p.search("ما هي علامات الجفاف؟", k=5, collapse_duplicates=False))) == 2
