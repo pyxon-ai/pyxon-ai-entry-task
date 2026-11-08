@@ -71,8 +71,13 @@ class HybridRetriever:
         mode: str = "hybrid",
         include_summaries: bool = False,
         doc_ids: list[int] | None = None,
+        min_relative_score: float = 0.5,
     ) -> list[SearchResult]:
-        """mode: 'hybrid' | 'vector' | 'keyword' | 'graph'."""
+        """mode: 'hybrid' | 'vector' | 'keyword' | 'graph'.
+
+        In hybrid mode, results found by only one retriever are kept only if their fused
+        score is at least ``min_relative_score`` x the top score (set 0 to disable).
+        """
         levels = [0, 1, 2, 3] if include_summaries else [0]
         pool = max(k * 4, 20)
         rankings: dict[str, list[tuple[str, float]]] = {}
@@ -91,7 +96,13 @@ class HybridRetriever:
                 fused[cid] += w / (RRF_K + rank)
                 sources[cid][name] = rank
 
-        top = sorted(fused.items(), key=lambda x: -x[1])[: k * 2]
+        ranked = sorted(fused.items(), key=lambda x: -x[1])
+        if len(rankings) > 1 and ranked and min_relative_score > 0:
+            # Drop weak filler: hits only a single retriever found that score far below the best hit.
+            best = ranked[0][1]
+            ranked = [(cid, sc) for cid, sc in ranked
+                      if len(sources[cid]) > 1 or sc >= min_relative_score * best]
+        top = ranked[: k * 2]
         rows = self.sql.get_chunks([cid for cid, _ in top])
         results = []
         for cid, score in top:
