@@ -5,6 +5,7 @@ Each test reproduces a reported failure with fresh inputs (not repository fixtur
 from __future__ import annotations
 
 import gc
+from pathlib import Path
 import os
 
 import pytest
@@ -273,3 +274,18 @@ def test_same_passage_from_two_files_is_shown_once():
     # whichever copy ranks first, the fully vocalized TXT text is the one shown
     top = p.search("حَيٌّ", k=1)[0]
     assert top.filename == "water_ar.txt" and "حَيٌّ" in top.text and top.also_in == ["water_ar.pdf"]
+
+
+def test_broken_plural_matches_singular():
+    """'المطر' (rain) must find a passage that only says 'الأمطار' (af'al broken plural)."""
+    from pyxon_parser.text import broken_plural_singular, content_tokens
+
+    assert broken_plural_singular("امطار") == "مطر"
+    assert broken_plural_singular("انهار") == "نهر"
+    assert broken_plural_singular("مطار") is None  # airport: not the pattern
+    assert "مطر" in content_tokens("وَتَسْقُطُ الْأَمْطَارُ")
+    p = PyxonParser(build_raptor=False)
+    for name in ["water_ar.txt", "coffee_history.docx", "inspection_report.txt"]:
+        p.ingest(Path(__file__).resolve().parent.parent / "samples" / name)
+    top = p.search("من أين يأتي المطر؟", k=3)[0]
+    assert top.filename == "water_ar.txt" and "keyword" in top.sources

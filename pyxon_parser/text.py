@@ -48,7 +48,20 @@ def content_tokens(text: str) -> list[str]:
         elif t.startswith(("وال", "بال", "فال", "كال")) and len(t) > 5:
             t = t[3:]
         out.append(t)
+        singular = broken_plural_singular(t) if is_arabic else None
+        if singular:
+            out.append(singular)
     return out
+
+
+def broken_plural_singular(token: str) -> str | None:
+    """Singular of the most common Arabic broken-plural pattern, af'al (أفعال):
+    امطار -> مطر, انهار -> نهر, اسعار -> سعر, اعمال -> عمل. Light stemming cannot reach these
+    because the plural is formed inside the word, so "المطر" would never match "الأمطار".
+    The token is already normalized (hamza forms of alef unified, diacritics removed)."""
+    if len(token) == 5 and token[0] == "ا" and token[3] == "ا" and "ا" not in token[1:3] + token[4]:
+        return token[1] + token[2] + token[4]
+    return None
 
 
 def count_tokens(text: str) -> int:

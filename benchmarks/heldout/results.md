@@ -28,6 +28,8 @@ Documents and questions written after the parser was built, in styles it was not
 | cross | 1 | 0.00 | 0.00 | 0.00 | 0.00 |
 | all | 28 | 0.75 | 0.79 | 0.79 | 0.77 |
 
+Noise: 28% of returned results come from a different document than the answer.
+
 Queries not answered at rank 1:
 
 | id | kind | query | result | top file |

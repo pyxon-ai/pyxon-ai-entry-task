@@ -84,10 +84,10 @@
       "modes": {
         "vector": {
           "hit@1": 0.931,
-          "hit@3": 1.0,
+          "hit@3": 0.966,
           "hit@5": 1.0,
-          "mrr@5": 0.966,
-          "ndcg@5": 0.961,
+          "mrr@5": 0.957,
+          "ndcg@5": 0.954,
           "misses": []
         },
         "keyword": {
@@ -149,10 +149,10 @@
       "modes": {
         "vector": {
           "hit@1": 0.897,
-          "hit@3": 1.0,
+          "hit@3": 0.966,
           "hit@5": 1.0,
-          "mrr@5": 0.948,
-          "ndcg@5": 0.948,
+          "mrr@5": 0.94,
+          "ndcg@5": 0.942,
           "misses": []
         },
         "keyword": {
@@ -284,9 +284,9 @@
         "max_tokens": 110,
         "section_crossing_rate": 0.75,
         "clean_boundary_rate": 1.0,
-        "intra_chunk_coherence": 0.224,
-        "cross_boundary_similarity": 0.261,
-        "coherence_gap": -0.037
+        "intra_chunk_coherence": 0.223,
+        "cross_boundary_similarity": 0.259,
+        "coherence_gap": -0.036
       },
       {
         "file": "water_ar.txt",
@@ -299,9 +299,9 @@
         "max_tokens": 77,
         "section_crossing_rate": 0.0,
         "clean_boundary_rate": 1.0,
-        "intra_chunk_coherence": 0.249,
-        "cross_boundary_similarity": 0.223,
-        "coherence_gap": 0.026
+        "intra_chunk_coherence": 0.248,
+        "cross_boundary_similarity": 0.221,
+        "coherence_gap": 0.027
       },
       {
         "file": "water_ar.docx",
@@ -314,8 +314,8 @@
         "max_tokens": 110,
         "section_crossing_rate": 0.75,
         "clean_boundary_rate": 1.0,
-        "intra_chunk_coherence": 0.222,
-        "cross_boundary_similarity": 0.259,
+        "intra_chunk_coherence": 0.221,
+        "cross_boundary_similarity": 0.258,
         "coherence_gap": -0.037
       },
       {
@@ -330,8 +330,8 @@
         "section_crossing_rate": 0.0,
         "clean_boundary_rate": 1.0,
         "intra_chunk_coherence": 0.245,
-        "cross_boundary_similarity": 0.222,
-        "coherence_gap": 0.023
+        "cross_boundary_similarity": 0.22,
+        "coherence_gap": 0.024
       },
       {
         "file": "water_ar.pdf",
@@ -344,9 +344,9 @@
         "max_tokens": 110,
         "section_crossing_rate": 0.75,
         "clean_boundary_rate": 1.0,
-        "intra_chunk_coherence": 0.224,
-        "cross_boundary_similarity": 0.261,
-        "coherence_gap": -0.037
+        "intra_chunk_coherence": 0.223,
+        "cross_boundary_similarity": 0.259,
+        "coherence_gap": -0.036
       },
       {
         "file": "water_ar.pdf",
@@ -359,9 +359,9 @@
         "max_tokens": 77,
         "section_crossing_rate": 0.0,
         "clean_boundary_rate": 1.0,
-        "intra_chunk_coherence": 0.249,
-        "cross_boundary_similarity": 0.223,
-        "coherence_gap": 0.026
+        "intra_chunk_coherence": 0.248,
+        "cross_boundary_similarity": 0.221,
+        "coherence_gap": 0.027
       },
       {
         "file": "inspection_report.txt",
@@ -514,184 +514,184 @@
         "file": "coffee_history.docx",
         "tokens": 654,
         "chunks": 6,
-        "load": 0.0507,
-        "analyze": 0.0178,
+        "load": 0.0559,
+        "analyze": 0.0191,
         "chunk": 0.0016,
-        "embed": 0.0323,
-        "raptor": 0.0282,
-        "store": 0.0593,
-        "total": 0.1899,
-        "tokens_per_sec": 3444,
+        "embed": 0.0336,
+        "raptor": 0.0376,
+        "store": 0.0618,
+        "total": 0.2095,
+        "tokens_per_sec": 3122,
         "peak_mem_mb": 2.22,
-        "rss_mb": 310.2
+        "rss_mb": 310.8
       },
       {
         "file": "coffee_history.pdf",
         "tokens": 654,
         "chunks": 6,
-        "load": 0.0958,
-        "analyze": 0.0177,
+        "load": 0.1006,
+        "analyze": 0.0191,
         "chunk": 0.0016,
-        "embed": 0.0379,
-        "raptor": 0.0322,
-        "store": 0.0549,
-        "total": 0.2401,
-        "tokens_per_sec": 2724,
+        "embed": 0.0389,
+        "raptor": 0.0316,
+        "store": 0.0557,
+        "total": 0.2475,
+        "tokens_per_sec": 2642,
         "peak_mem_mb": 1.21,
-        "rss_mb": 310.2
+        "rss_mb": 310.9
       },
       {
         "file": "water_ar.txt",
         "tokens": 342,
         "chunks": 5,
-        "load": 0.0006,
-        "analyze": 0.0225,
+        "load": 0.0005,
+        "analyze": 0.0231,
         "chunk": 0.0011,
-        "embed": 0.0246,
-        "raptor": 0.0167,
-        "store": 0.0495,
-        "total": 0.1151,
-        "tokens_per_sec": 2971,
+        "embed": 0.0256,
+        "raptor": 0.0172,
+        "store": 0.0494,
+        "total": 0.1169,
+        "tokens_per_sec": 2926,
         "peak_mem_mb": 0.7,
-        "rss_mb": 310.3
+        "rss_mb": 310.9
       },
       {
         "file": "water_ar.docx",
         "tokens": 342,
         "chunks": 5,
-        "load": 0.0551,
-        "analyze": 0.0227,
+        "load": 0.0555,
+        "analyze": 0.0228,
         "chunk": 0.001,
-        "embed": 0.0251,
-        "raptor": 0.0165,
-        "store": 0.0493,
-        "total": 0.1696,
-        "tokens_per_sec": 2017,
+        "embed": 0.0249,
+        "raptor": 0.017,
+        "store": 0.0502,
+        "total": 0.1715,
+        "tokens_per_sec": 1994,
         "peak_mem_mb": 2.22,
-        "rss_mb": 310.3
+        "rss_mb": 311.0
       },
       {
         "file": "water_ar.pdf",
         "tokens": 342,
         "chunks": 5,
-        "load": 0.6264,
-        "analyze": 0.0252,
+        "load": 0.6493,
+        "analyze": 0.0256,
         "chunk": 0.0011,
-        "embed": 0.0297,
-        "raptor": 0.019,
-        "store": 0.0579,
-        "total": 0.7595,
-        "tokens_per_sec": 450,
-        "peak_mem_mb": 2.74,
-        "rss_mb": 310.4
+        "embed": 0.0317,
+        "raptor": 0.0207,
+        "store": 0.0612,
+        "total": 0.7894,
+        "tokens_per_sec": 433,
+        "peak_mem_mb": 2.77,
+        "rss_mb": 311.0
       },
       {
         "file": "inspection_report.txt",
         "tokens": 292,
         "chunks": 3,
         "load": 0.0005,
-        "analyze": 0.0028,
-        "chunk": 0.0005,
-        "embed": 0.0162,
+        "analyze": 0.003,
+        "chunk": 0.0006,
+        "embed": 0.0173,
         "raptor": 0.0074,
-        "store": 0.0248,
-        "total": 0.0523,
-        "tokens_per_sec": 5583,
+        "store": 0.0274,
+        "total": 0.0562,
+        "tokens_per_sec": 5196,
         "peak_mem_mb": 0.45,
-        "rss_mb": 310.4
+        "rss_mb": 311.1
       },
       {
         "file": "inspection_report.pdf",
         "tokens": 292,
         "chunks": 3,
-        "load": 0.0647,
+        "load": 0.0697,
         "analyze": 0.0034,
-        "chunk": 0.0007,
-        "embed": 0.02,
-        "raptor": 0.0089,
-        "store": 0.0274,
-        "total": 0.1252,
-        "tokens_per_sec": 2332,
+        "chunk": 0.0008,
+        "embed": 0.0205,
+        "raptor": 0.0095,
+        "store": 0.028,
+        "total": 0.1318,
+        "tokens_per_sec": 2215,
         "peak_mem_mb": 0.65,
-        "rss_mb": 310.4
+        "rss_mb": 311.1
       },
       {
         "file": "employee_form_ar.docx",
         "tokens": 170,
         "chunks": 2,
-        "load": 0.1329,
-        "analyze": 0.0056,
+        "load": 0.1352,
+        "analyze": 0.0055,
         "chunk": 0.0005,
         "embed": 0.0156,
-        "raptor": 0.0119,
+        "raptor": 0.0126,
         "store": 0.0285,
-        "total": 0.1951,
-        "tokens_per_sec": 871,
+        "total": 0.1978,
+        "tokens_per_sec": 859,
         "peak_mem_mb": 2.22,
-        "rss_mb": 310.5
+        "rss_mb": 311.1
       },
       {
         "file": "employee_form_ar.doc",
         "tokens": 170,
         "chunks": 2,
-        "load": 0.2336,
-        "analyze": 0.0085,
+        "load": 0.2898,
+        "analyze": 0.0086,
         "chunk": 0.0007,
-        "embed": 0.0242,
-        "raptor": 0.0184,
-        "store": 0.0439,
-        "total": 0.3294,
-        "tokens_per_sec": 516,
+        "embed": 0.0172,
+        "raptor": 0.012,
+        "store": 0.028,
+        "total": 0.3563,
+        "tokens_per_sec": 477,
         "peak_mem_mb": 0.38,
-        "rss_mb": 310.5
+        "rss_mb": 311.1
       }
     ],
     "query_latency": {
       "vector": {
-        "p50_ms": 2.63,
-        "p95_ms": 4.22
+        "p50_ms": 27.52,
+        "p95_ms": 61.19
       },
       "keyword": {
-        "p50_ms": 0.14,
-        "p95_ms": 0.23
+        "p50_ms": 0.52,
+        "p95_ms": 19.4
       },
       "graph": {
-        "p50_ms": 0.12,
-        "p95_ms": 0.23
+        "p50_ms": 0.15,
+        "p95_ms": 1.54
       },
       "hybrid": {
-        "p50_ms": 4.14,
-        "p95_ms": 4.76
+        "p50_ms": 3.79,
+        "p95_ms": 22.5
       }
     },
     "scalability": [
       {
         "documents": 5,
         "leaf_chunks": 28,
-        "ingest_s": 0.12,
-        "docs_per_sec": 40.8,
-        "hybrid_p50_ms": 3.17
+        "ingest_s": 0.14,
+        "docs_per_sec": 35.3,
+        "hybrid_p50_ms": 20.23
       },
       {
         "documents": 20,
         "leaf_chunks": 110,
-        "ingest_s": 0.51,
-        "docs_per_sec": 38.9,
-        "hybrid_p50_ms": 3.99
+        "ingest_s": 0.53,
+        "docs_per_sec": 37.6,
+        "hybrid_p50_ms": 5.54
       },
       {
         "documents": 50,
         "leaf_chunks": 275,
-        "ingest_s": 1.31,
-        "docs_per_sec": 38.1,
-        "hybrid_p50_ms": 5.76
+        "ingest_s": 1.28,
+        "docs_per_sec": 39.1,
+        "hybrid_p50_ms": 7.25
       },
       {
         "documents": 100,
         "leaf_chunks": 550,
-        "ingest_s": 2.56,
-        "docs_per_sec": 39.1,
-        "hybrid_p50_ms": 8.42
+        "ingest_s": 2.76,
+        "docs_per_sec": 36.3,
+        "hybrid_p50_ms": 10.3
       }
     ]
   },

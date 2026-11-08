@@ -22,6 +22,15 @@ from pyxon_parser.arabic import diacritic_stats
 
 ROOT = Path(__file__).parent
 SAMPLES = ROOT / "samples"
+from pyxon_parser.embeddings import HashingEmbedder as _Hashing
+
+EMBEDDER_NOTE = (
+    "\n>\n> ℹ️ **Lexical embedder on this server.** The free instance runs the offline character n-gram "
+    "embedder, which matches wording, not meaning: paraphrased or cross-language questions (English question, "
+    "Arabic document) can miss. Run locally with `PYXON_EMBEDDER=fastembed` for the multilingual neural model "
+    "(paraphrase Hit@3 0.29 → 0.86 on the evaluation set)."
+)
+
 DEFAULT_SAMPLES = ["coffee_history.docx", "inspection_report.txt", "water_ar.txt", "employee_form_ar.docx"]
 
 parser = PyxonParser(
@@ -161,6 +170,7 @@ with gr.Blocks(title="Pyxon AI Document Parser") as demo:
         f"Embedder: `{parser.embedder.name}` · LLM: `{parser.rag.llm.model if parser.rag.llm else 'none (extractive answers)'}`\n\n"
         "> ⚠️ **Shared public demo.** Every visitor sees the same index: uploaded files, the SQL tab and "
         "deletion are shared. Please upload only sample or public documents."
+        + (EMBEDDER_NOTE if isinstance(parser.embedder, _Hashing) else "")
     )
     status = gr.Markdown()
     with gr.Tab("1 · Parse documents"):
@@ -172,7 +182,7 @@ with gr.Blocks(title="Pyxon AI Document Parser") as demo:
                 go = gr.Button("Parse & index", variant="primary")
                 # the upload box takes multiple files, so each example value must be a list
                 gr.Examples([[[str(SAMPLES / n)]] for n in
-                             ["water_ar.pdf", "water_ar.txt", "coffee_history.pdf", "employee_form_ar.doc", "inspection_report.pdf"]],
+                             ["water_ar.pdf", "water_ar.txt", "coffee_history.docx", "employee_form_ar.doc", "inspection_report.pdf"]],
                             inputs=[files], label="Sample files (Arabic with harakat, English, forms)")
         report = gr.Markdown()
         with gr.Accordion("Chunks", open=True):

@@ -48,7 +48,7 @@ My solution to the [Pyxon AI junior engineer entry task](TASK.md): a document pa
 ```bash
 pip install -r requirements-dev.txt -c constraints.txt   # Python 3.11+; constraints = the tested versions
 python app.py                            # demo on http://localhost:7860 (sample docs auto-load)
-pytest                                   # 113 tests (unit, held-out documents, broken files, review regressions)
+pytest                                   # 114 tests (unit, held-out documents, broken files, review regressions)
 python -m benchmarks.run_benchmark       # writes benchmarks/results/results.{md,json}
 ```
 
@@ -110,6 +110,8 @@ How to read these numbers: the corpus is small (4 documents per corpus, by desig
 ### Held-out evaluation (unseen documents)
 
 The numbers above use documents that were in front of me while I built the parser. To check that it generalises, `benchmarks/heldout/` adds **documents and questions written afterwards, in styles it was not tuned on**: an Arabic data-protection law (المادة 1 … 7), an Arabic news article saved in **Windows-1256**, a fully **vocalized** Arabic story, a **bilingual** EN/AR DOCX with a table, a PDF product manual, a 41-chapter report, and seven **broken files** (corrupt PDF, fake DOCX, empty, whitespace-only, image-only "scanned" PDF, a 6,000-word single line, unknown extension).
+
+A caveat: the set was unseen when it was written, but I have since used it to calibrate the neural filter (below) and to check fixes, so it is now a development set rather than a strictly held-out one. A frozen, larger test set is listed under future work.
 
 ```bash
 python -m benchmarks.heldout.build_heldout   # builds the documents
@@ -182,7 +184,7 @@ pyxon_parser/
 app.py           Gradio demo
 benchmarks/      queries.json, run_benchmark.py, results/, heldout/ (unseen-document evaluation)
 samples/         sample corpus (EN/AR, vocalized Arabic, forms) + build script
-tests/           pytest suite (113 tests)
+tests/           pytest suite (114 tests)
 .github/         CI: tests on Python 3.11/3.12, held-out evaluation, Docker build
 ```
 
@@ -208,6 +210,7 @@ tests/           pytest suite (113 tests)
 
 * Shadda inside lam-alef ligatures can be lost in some PDFs (89% of harakat recovered from the sample PDF; the bare text is 100% correct). DOCX and TXT are lossless.
 * The scanned-PDF/OCR path (scanned PDFs are rejected with a clear OCR message), table structure in PDFs and image captions are not implemented.
+* Arabic morphology is light: the definite article and prefixed و/ب/ف/ك + ال are stripped, and the commonest broken plural (أفعال: الأمطار → مطر, الأنهار → نهر) is indexed with its singular. Other broken-plural patterns (بحور, دروس, مساجد) and attached prefixes like و + noun without ال are not; a real Arabic stemmer (e.g. ISRI or Farasa) would cover them.
 * Heading detection in plain TXT is heuristic. An LLM-based structure pass could be added for messy documents.
 * With the default offline embedder, paraphrased questions (Hit@3 0.29 on the held-out set) and cross-language questions are weak; `PYXON_EMBEDDER=fastembed` largely fixes both (paraphrase Hit@3 0.86, cross-language rank 1). The free Render instance (512 MB RAM) runs the hashing embedder; a paid instance or a machine with ~1 GB RAM can run the neural one.
 * The public demo is shared and uses the hashing embedder; per-session isolation and a neural model need a larger instance.
