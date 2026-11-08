@@ -269,9 +269,24 @@ def load_docx(path: Path, data: bytes) -> ParsedDocument:
     )
 
 
+def find_soffice() -> str | None:
+    """LibreOffice binary: PATH first, then the default Windows/macOS install locations."""
+    found = shutil.which("soffice") or shutil.which("libreoffice")
+    if found:
+        return found
+    for candidate in (
+        r"C:\Program Files\LibreOffice\program\soffice.exe",
+        r"C:\Program Files (x86)\LibreOffice\program\soffice.exe",
+        "/Applications/LibreOffice.app/Contents/MacOS/soffice",
+    ):
+        if Path(candidate).exists():
+            return candidate
+    return None
+
+
 def load_doc(path: Path, data: bytes) -> ParsedDocument:
     """Legacy .doc: convert to .docx with LibreOffice (headless), then reuse the DOCX loader."""
-    soffice = shutil.which("soffice") or shutil.which("libreoffice")
+    soffice = find_soffice()
     if not soffice:
         raise UnsupportedFileType(
             ".doc files need LibreOffice installed (soffice) for conversion; "

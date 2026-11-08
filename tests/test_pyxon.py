@@ -15,7 +15,7 @@ from pyxon_parser.arabic import (  # noqa: E402
 )
 from pyxon_parser.chunking import DynamicChunker, FixedChunker  # noqa: E402
 from pyxon_parser.embeddings import HashingEmbedder  # noqa: E402
-from pyxon_parser.loaders import UnsupportedFileType, decode_text, load_document  # noqa: E402
+from pyxon_parser.loaders import UnsupportedFileType, decode_text, find_soffice, load_document  # noqa: E402
 
 SAMPLES = Path(__file__).resolve().parent.parent / "samples"
 VOCALIZED = "الْمَاءُ هُوَ أَسَاسُ الْحَيَاةِ"
@@ -57,8 +57,12 @@ def test_decode_encodings(enc):
 
 
 # --- loaders ----------------------------------------------------------------
+NEEDS_LIBREOFFICE = pytest.mark.skipif(find_soffice() is None, reason="LibreOffice not installed (needed for .doc)")
+
+
 @pytest.mark.parametrize("name", ["coffee_history.docx", "coffee_history.pdf", "water_ar.txt", "water_ar.docx",
-                                  "water_ar.pdf", "employee_form_ar.doc", "inspection_report.pdf"])
+                                  "water_ar.pdf", pytest.param("employee_form_ar.doc", marks=NEEDS_LIBREOFFICE),
+                                  "inspection_report.pdf"])
 def test_loaders_extract_text(name):
     doc = load_document(SAMPLES / name)
     assert len(doc.text) > 200
