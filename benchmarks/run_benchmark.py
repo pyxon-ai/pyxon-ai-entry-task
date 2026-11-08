@@ -38,7 +38,7 @@ from pyxon_parser.arabic import (
 )
 from pyxon_parser.chunking import DynamicChunker, FixedChunker
 from pyxon_parser.embeddings import get_embedder
-from pyxon_parser.loaders import arabic_garble_score, decode_text, load_document
+from pyxon_parser.loaders import arabic_garble_score, decode_text, find_soffice, load_document
 from pyxon_parser.text import split_sentences
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -56,6 +56,12 @@ CORPORA = {
     "pdf": ["coffee_history.pdf", "inspection_report.pdf", "water_ar.pdf", "employee_form_ar.docx"],
 }
 MODES = ["vector", "keyword", "graph", "hybrid"]
+
+# Legacy .doc needs LibreOffice; without it, skip .doc files and use the .docx copy in the corpus.
+if find_soffice() is None:
+    print("LibreOffice not found: skipping .doc samples (using .docx instead)")
+    EXPECTED_STRATEGY = {k: v for k, v in EXPECTED_STRATEGY.items() if not k.endswith(".doc")}
+    CORPORA = {c: [f[:-4] + ".docx" if f.endswith(".doc") else f for f in files] for c, files in CORPORA.items()}
 
 
 def family(filename: str) -> str:
