@@ -49,11 +49,14 @@ def main() -> None:
     for name in spec["corpus"]:
         parser.ingest(DOCS / name)
     by_kind: dict[str, list] = defaultdict(list)
+    wrong_file: list[float] = []  # share of returned results that come from another document (noise)
     misses = []
     for q in spec["queries"]:
         res = parser.search(q["query"], k=5)
         ev = normalize_for_index(q["evidence"])
         ranks = [i for i, r in enumerate(res) if r.filename == q["file"] and ev in normalize_for_index(r.text)]
+        if res:
+            wrong_file.append(sum(r.filename != q["file"] for r in res) / len(res))
         first = ranks[0] if ranks else None
         by_kind[q["kind"]].append(first)
         by_kind["all"].append(first)
@@ -70,6 +73,9 @@ def main() -> None:
         mrr = statistics.fmean(0 if f is None else 1 / (f + 1) for f in firsts)
         lines.append(f"| {kind} | {n} | {h(1):.2f} | {h(3):.2f} | {h(5):.2f} | {mrr:.2f} |")
         print(f"{kind:10} n={n:2} hit@1={h(1):.2f} hit@3={h(3):.2f} mrr={mrr:.2f}")
+    noise = statistics.fmean(wrong_file) if wrong_file else 0.0
+    lines.append(f"\nNoise: {noise:.0%} of returned results come from a different document than the answer.")
+    print(f"noise      {noise:.0%} of returned results are from another document")
     if misses:
         lines.append("\nQueries not answered at rank 1:\n\n| id | kind | query | result | top file |\n|---|---|---|---|---|")
         lines.extend(misses)
