@@ -112,15 +112,18 @@ python -m benchmarks.heldout.build_heldout   # builds the documents
 python -m benchmarks.heldout.run_heldout     # writes benchmarks/heldout/results.md
 ```
 
-| Check (hashing embedder) | Result |
-|---|---|
-| Strategy selection | **8/8** |
-| Retrieval, questions sharing words with the answer (n=20) | Hit@1 **0.90**, Hit@3 **1.00** |
-| Retrieval, paraphrased questions (n=7) | Hit@1 0.29, Hit@3 0.29 |
-| Retrieval, English question about an Arabic document (n=1) | miss |
-| Broken files | **7/7** handled: clear `DocumentLoadError` / `EmptyDocumentError` ("scanned PDF, needs OCR"), nothing half-indexed |
+| Check | Hashing embedder (default, offline) | Neural embedder (`PYXON_EMBEDDER=fastembed`) |
+|---|---|---|
+| Strategy selection | **8/8** | **8/8** |
+| Questions sharing words with the answer (n=20) | Hit@1 0.90 · Hit@3 1.00 | Hit@1 0.90 · Hit@3 1.00 |
+| Paraphrased questions (n=7) | Hit@1 0.29 · Hit@3 0.29 | Hit@1 0.43 · **Hit@3 1.00** |
+| English question about an Arabic document (n=1) | miss | **rank 1** |
+| All 28 questions | Hit@1 0.71 · Hit@3 0.79 · MRR 0.75 | Hit@1 0.79 · **Hit@3 1.00** · MRR 0.88 |
+| Broken files | **7/7** handled | **7/7** handled |
 
-Running it on unseen documents found three real bugs, which are now fixed and covered by tests: legal articles (`المادة 3: …`) were mistaken for form fields, damaged files crashed with library errors, and image-only PDFs were "indexed" with zero chunks. It also shows the main limit of the offline hashing embedder: it matches words, not meaning, so **paraphrased and cross-language questions need the neural embedder** (`PYXON_EMBEDDER=fastembed`). The hybrid design keeps BM25 for exact terms and lets the neural vectors handle meaning.
+Broken files get a clear `DocumentLoadError` or `EmptyDocumentError` ("scanned PDF, needs OCR"), and nothing is half-indexed. The neural column was measured on a Windows laptop with `paraphrase-multilingual-MiniLM-L12-v2` (quantized ONNX, 235 MB download); the hashing column gives identical numbers on Linux and Windows.
+
+Running it on unseen documents found three real bugs, which are now fixed and covered by tests: legal articles (`المادة 3: …`) were mistaken for form fields, damaged files crashed with library errors, and image-only PDFs were "indexed" with zero chunks. It also shows the main limit of the offline hashing embedder: it matches words, not meaning. Switching to the neural embedder lifts paraphrased questions from Hit@3 0.29 to 1.00 and answers the cross-language question, with no loss on exact-wording questions, because hybrid retrieval still uses BM25 for exact terms and the neural vectors for meaning.
 
 ## Project layout
 
@@ -166,5 +169,5 @@ tests/           pytest suite
 * Shadda inside lam-alef ligatures can be lost in some PDFs (89% of harakat recovered from the sample PDF; the bare text is 100% correct). DOCX and TXT are lossless.
 * The scanned-PDF/OCR path, table structure in PDFs and image captions are not implemented.
 * Heading detection in plain TXT is heuristic. An LLM-based structure pass could be added for messy documents.
-* With the default offline embedder, paraphrased questions (Hit@1 0.29 on the held-out set) and cross-language questions are weak; use `PYXON_EMBEDDER=fastembed` (neural multilingual) for those. The free Render instance (512 MB RAM) runs the hashing embedder.
+* With the default offline embedder, paraphrased questions (Hit@3 0.29 on the held-out set) and cross-language questions are weak; `PYXON_EMBEDDER=fastembed` fixes both (Hit@3 1.00). The free Render instance (512 MB RAM) runs the hashing embedder; a paid instance or a machine with ~1 GB RAM can run the neural one.
 * With more data: tune the RRF weights and dynamic-chunk thresholds on a labelled set, add a cross-encoder re-ranker (e.g. multilingual BGE reranker) and an Arabic-specific embedder (e.g. a CAMeLBERT-based model).
