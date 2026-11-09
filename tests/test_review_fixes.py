@@ -402,3 +402,15 @@ def test_duplicate_with_extra_title_line_is_collapsed():
     assert len(files) == len(set(r.chunk_id for r in res))
     assert not any(a.text[:40] == b.text[:40] for i, a in enumerate(res) for b in res[i + 1:])
     assert res[0].also_in  # the other copy is listed, not shown twice
+
+
+def test_already_indexed_file_is_skipped_before_parsing(monkeypatch):
+    """replace=False must not re-parse an unchanged file (the demo re-loads its samples)."""
+    import pyxon_parser.pipeline as pl
+
+    samples = Path(__file__).resolve().parent.parent / "samples"
+    p = PyxonParser(build_raptor=False)
+    first = p.ingest(samples / "water_ar.pdf")
+    monkeypatch.setattr(pl, "load_document", lambda *a, **k: (_ for _ in ()).throw(AssertionError("parsed again")))
+    again = p.ingest(samples / "water_ar.pdf", replace=False)
+    assert again.duplicate and again.document_id == first.document_id

@@ -24,7 +24,7 @@ from .text import LEXICAL_VERSION, index_fields
 class IngestResult:
     document_id: int
     filename: str
-    analysis: DocumentAnalysis
+    analysis: DocumentAnalysis | None  # None for a duplicate skipped before parsing
     chunks: list[Chunk]
     summaries: list[Chunk]
     timings: dict[str, float] = field(default_factory=dict)
@@ -92,6 +92,14 @@ class PyxonParser:
     def ingest(self, path: str | Path, strategy: str = "auto", replace: bool = True) -> IngestResult:
         t = {}
         t0 = time.perf_counter()
+        if not replace:
+            # an unchanged file that is already indexed is skipped before parsing (hash of the raw
+            # bytes, the same hash the loaders store), so re-loading samples costs no PDF/OCR work
+            import hashlib
+
+            existing = self.sql.find_document(hashlib.sha256(Path(path).read_bytes()).hexdigest())
+            if existing is not None:
+                return IngestResult(existing, Path(path).name, None, [], [], {}, duplicate=True)
         parsed = load_document(path)
         t["load"] = time.perf_counter() - t0
 

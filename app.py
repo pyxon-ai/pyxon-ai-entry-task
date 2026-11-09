@@ -233,7 +233,8 @@ with gr.Blocks(title="Pyxon AI Document Parser") as demo:
     qbtn.click(run_sql, sql, [sql_out, sql_err])
     lbtn.click(load_samples, None, [lib, status])
     dbtn.click(delete_doc, del_id, [lib, status])
-    demo.load(load_samples, None, [lib, status])
+    # samples are loaded once at server start (below); a page load only refreshes the table
+    demo.load(lambda: (library_table(), f"Loaded {len(DEFAULT_SAMPLES)} sample documents."), None, [lib, status])
 
 # One server for both: the REST API at /api (docs at /docs) and the demo UI at /
 load_samples()  # so API clients find the samples even before anyone opens the UI
