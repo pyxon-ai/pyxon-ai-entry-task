@@ -29,7 +29,7 @@ My solution to the [Pyxon AI junior engineer entry task](TASK.md): a document pa
 | Requirement | How it is done |
 |---|---|
 | PDF | **PyMuPDF** for layout blocks and font sizes, so headings are detected from font size. **pypdf** is a second extractor. For each page, the loader keeps whichever output is *less garbled* (`arabic_garble_score`), because some Arabic PDFs only extract in logical order with one of the two. Arabic presentation forms (U+FB50–U+FEFF) are NFKC-normalized back to base letters. |
-| Scanned PDF (OCR) | A page with no text layer but with images is rendered at 300 dpi and read with **Tesseract** (`ara+eng`), which returns Arabic in logical order. On the scanned Arabic sample: **99.9% character similarity, 98.4% word recall**, about 1 s per page. A blank scan still gets a clear error. Needs the `tesseract` binary with Arabic data (installed in the Docker image); without it, scans are rejected with an install hint |
+| Scanned PDF (OCR) | A page with no text layer but with images is rendered at 200 dpi (`PYXON_OCR_DPI`; 300 dpi gave the same accuracy at twice the time) and read with **Tesseract** (`ara+eng`), which returns Arabic in logical order. On the scanned Arabic sample: **99.9% character similarity, 98.4% word recall**, about 1 s per page. A blank scan still gets a clear error. Needs the `tesseract` binary with Arabic data (installed in the Docker image); without it, scans are rejected with an install hint |
 | DOCX | python-docx with **heading styles** (Heading 1–n / Title) as structure. Paragraphs and tables are read **in document order**, so a table stays under its heading; each table row becomes one sentence with its column headers (`Item: Alpha, Price: 17 dinars.`) |
 | DOC | Converted headlessly with LibreOffice (`soffice --convert-to docx`), then parsed as DOCX |
 | TXT | BOM → UTF-8 → legacy Arabic codecs. Windows-1256 accepts almost any byte, so **Windows-1256 and ISO-8859-6 are both tried and the more plausible Arabic wins** (accented Latin letters inside Arabic words reveal the wrong codec). `load_document(path, encoding=...)` overrides detection |
@@ -88,7 +88,7 @@ Configuration (environment variables):
 | `PYXON_DATA_DIR` | `./data` | Where the demo keeps SQLite and Chroma |
 | `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` | none | Turns on LLM answers. `PYXON_LLM_MODEL` and `OPENAI_BASE_URL` are optional. (The API clients are implemented but were not exercised end to end with a real key for this submission.) |
 | `PYXON_ARABIC_STEM` | `light` | `light` (stems + af'al plurals in the weighted column), `isri` (also NLTK ISRI roots; measured, no gain), or empty to disable |
-| `PYXON_OCR`, `PYXON_OCR_LANG`, `TESSERACT_CMD` | `1`, `ara+eng`, auto | Turn OCR off, change its languages, or point to `tesseract.exe` on Windows (default `C:\Program Files\Tesseract-OCR\tesseract.exe`) |
+| `PYXON_OCR`, `PYXON_OCR_LANG`, `PYXON_OCR_DPI`, `TESSERACT_CMD` | `1`, `ara+eng`, `200`, auto | Turn OCR off, change its languages, or point to `tesseract.exe` on Windows (default `C:\Program Files\Tesseract-OCR\tesseract.exe`) |
 | `PYXON_API_KEY` | none | When set, API upload and delete require the header `X-API-Key` |
 | `PYXON_LLM_SUMMARIES` | `0` | `1` makes the RAPTOR tree use the LLM for cluster summaries (needs a key) |
 
