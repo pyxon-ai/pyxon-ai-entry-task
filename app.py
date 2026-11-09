@@ -29,7 +29,7 @@ EMBEDDER_NOTE = (
     "\n>\n> ℹ️ **Lexical embedder on this server.** The free instance runs the offline character n-gram "
     "embedder, which matches wording, not meaning: paraphrased or cross-language questions (English question, "
     "Arabic document) can miss. Run locally with `PYXON_EMBEDDER=fastembed` for the multilingual neural model "
-    "(paraphrase Hit@3 0.29 → 0.86 on the evaluation set)."
+    "(paraphrase Hit@3 0.43 → 0.86 on the evaluation set)."
 )
 
 DEFAULT_SAMPLES = ["coffee_history.docx", "inspection_report.txt", "water_ar.txt", "employee_form_ar.docx"]
