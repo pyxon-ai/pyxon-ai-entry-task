@@ -24,7 +24,7 @@ from functools import lru_cache
 
 import numpy as np
 
-from .arabic import normalize_for_index
+from .arabic import normalize_for_index, strip_diacritics
 from .text import content_tokens
 
 log = logging.getLogger(__name__)
@@ -39,6 +39,11 @@ class Embedder:
 
     def embed_one(self, text: str, *, is_query: bool = False) -> np.ndarray:
         return self.embed([text], is_query=is_query)[0]
+
+    @property
+    def index_key(self) -> str:
+        """Names the vector collection: the model plus how its input is prepared."""
+        return self.name
 
 
 class HashingEmbedder(Embedder):
@@ -72,6 +77,19 @@ class HashingEmbedder(Embedder):
         return mat / lengths
 
 
+def neural_input(texts: list[str]) -> list[str]:
+    """Text as the neural models see it: harakat and tatweel removed, everything else unchanged.
+    Pretrained multilingual models saw almost only unvocalized Arabic, so a vocalized word is cut into
+    unfamiliar sub-word pieces and the same sentence with and without harakat gets different vectors.
+    The stored text keeps every mark; only the model input is stripped."""
+    return [strip_diacritics(t) for t in texts]
+
+
+# Bump when neural_input changes: the vector collection name includes it, so stored vectors made
+# from the old input are rebuilt automatically instead of being mixed with new ones.
+NEURAL_INPUT_VERSION = "nodiac1"
+
+
 class SentenceTransformerEmbedder(Embedder):
     def __init__(self, model_name: str = "intfloat/multilingual-e5-small"):
         from sentence_transformers import SentenceTransformer
@@ -81,7 +99,12 @@ class SentenceTransformerEmbedder(Embedder):
         self.dim = self.model.get_sentence_embedding_dimension()
         self._e5 = "e5" in model_name.lower()
 
+    @property
+    def index_key(self) -> str:
+        return f"{self.name}#{NEURAL_INPUT_VERSION}"
+
     def embed(self, texts: list[str], *, is_query: bool = False) -> np.ndarray:
+        texts = neural_input(texts)
         if self._e5:
             prefix = "query: " if is_query else "passage: "
             texts = [prefix + t for t in texts]
@@ -106,8 +129,12 @@ class FastEmbedEmbedder(Embedder):
         self.model = TextEmbedding(model_name=self.name)
         self.dim = len(next(iter(self.model.embed(["probe"]))))
 
+    @property
+    def index_key(self) -> str:
+        return f"{self.name}#{NEURAL_INPUT_VERSION}"
+
     def embed(self, texts: list[str], *, is_query: bool = False) -> np.ndarray:
-        vecs = np.asarray(list(self.model.embed(texts)), dtype=np.float32)
+        vecs = np.asarray(list(self.model.embed(neural_input(texts))), dtype=np.float32)
         norms = np.linalg.norm(vecs, axis=1, keepdims=True)
         norms[norms == 0] = 1.0
         return vecs / norms

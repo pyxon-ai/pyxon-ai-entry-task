@@ -55,7 +55,7 @@ class PyxonParser:
         if data_dir is None:
             # in-memory: both stores are private to this parser (UUID collection)
             self.sql = SQLStore(":memory:")
-            self.vectors = VectorStore(None, self.embedder.name, self.embedder.dim)
+            self.vectors = VectorStore(None, self.embedder.index_key, self.embedder.dim)
         else:
             data_dir = Path(data_dir)
             data_dir.mkdir(parents=True, exist_ok=True)
@@ -66,7 +66,7 @@ class PyxonParser:
                 self.sql.rebuild_lexical(LEXICAL_VERSION, index_fields, build_graph)
             # one collection per embedding model; if this model has no (or partial) vectors yet,
             # rebuild them from the chunk texts kept in SQLite instead of failing at query time
-            self.vectors = VectorStore(data_dir / "chroma", self.embedder.name, self.embedder.dim)
+            self.vectors = VectorStore(data_dir / "chroma", self.embedder.index_key, self.embedder.dim)
             if self.vectors.count() != self.sql.chunk_count():
                 self.reindex()
         self.fixed = FixedChunker(fixed_chunk_size, fixed_overlap)
@@ -182,7 +182,7 @@ class PyxonParser:
             self.vectors.client.delete_collection(self.vectors.collection.name)
         except Exception:
             pass
-        meta = {"hnsw:space": "cosine", "embedder": self.embedder.name, "dim": int(self.embedder.dim)}
+        meta = {"hnsw:space": "cosine", "embedder": self.embedder.index_key, "dim": int(self.embedder.dim)}
         self.vectors.collection = self.vectors.client.get_or_create_collection(
             name=self.vectors.collection.name, metadata=meta, embedding_function=None
         )

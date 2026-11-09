@@ -371,3 +371,16 @@ def test_image_without_text_still_rejected_clearly():
     heldout = Path(__file__).resolve().parent.parent / "benchmarks" / "heldout" / "docs"
     with pytest.raises(EmptyDocumentError, match="scanned/image-only PDF"):
         load_document(heldout / "edge_image_only.pdf")
+
+
+def test_neural_models_get_text_without_harakat():
+    """Vocalized and bare Arabic must reach a neural model as the same string (pretrained models
+    saw almost only unvocalized text), and the vector collection name records that input format."""
+    from pyxon_parser.embeddings import NEURAL_INPUT_VERSION, FastEmbedEmbedder, HashingEmbedder, neural_input
+
+    voc, bare = "وَتَسْقُطُ الْأَمْطَارُ عَلَى الْجِبَالِ", "وتسقط الأمطار على الجبال"
+    assert neural_input([voc]) == neural_input([bare]) == [bare]
+    assert HashingEmbedder().index_key == HashingEmbedder().name
+    fake = FastEmbedEmbedder.__new__(FastEmbedEmbedder)
+    fake.name = "some/model"
+    assert fake.index_key == f"some/model#{NEURAL_INPUT_VERSION}"
