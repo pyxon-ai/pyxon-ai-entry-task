@@ -52,7 +52,7 @@ My solution to the [Pyxon AI junior engineer entry task](TASK.md): a document pa
 ```bash
 pip install -r requirements-dev.txt -c constraints.txt   # Python 3.11+; constraints = the tested versions
 python app.py                            # demo on http://localhost:7860 (sample docs auto-load)
-pytest                                   # 125 tests (unit, API, OCR, held-out documents, broken files, review regressions)
+pytest                                   # 126 tests (unit, API, OCR, held-out documents, broken files, review regressions)
 python -m benchmarks.run_benchmark       # writes benchmarks/results/results.{md,json}
 ```
 
@@ -117,6 +117,10 @@ The same server also exposes the REST API, with interactive docs at [`/docs`](ht
 * **Chunking quality:** dynamic chunking has a **0%** section-crossing rate, against 41% for fixed windows on the same documents. Every chunk ends exactly where a complete source sentence ends (the metric compares against the source sentences, so a forced cut inside a sentence counts as a failure; the tests check this). The coherence gap (within-chunk minus across-boundary similarity) is +0.14 for dynamic and −0.03 for fixed.
 * **Performance:** 0.05–0.35 s to ingest each sample (about 0.8 s for the Arabic PDF, which runs two extractors). Python allocations stay under 3 MB per document; the whole process (Python, Chroma, models) uses about 310 MB RSS. Hybrid query p50 is about 3.6 ms. At **100 documents / 550 chunks**, ingest runs at about 38 docs/s and hybrid query p50 is about 10 ms.
 * **Arabic:** all 1,298 harakat survive end to end (source = SQL = Chroma, for both TXT and DOCX). Vocalized and bare queries return the same top-1 (3/3 pairs, 4/4 single words). Normalization passes 10/10 cases, UTF-8, UTF-16, Windows-1256 and ISO-8859-6 all round-trip, and the Arabic PDF's bare text matches the source 100%. A **scanned** (image-only) Arabic PDF is read by OCR with 99.9% character similarity and 98.4% word recall.
+
+**With the neural model** (`PYXON_EMBEDDER=fastembed`, multilingual MiniLM, Windows laptop, Python 3.11) the same benchmark gives hybrid Hit@1 0.97 · Hit@3 1.00 · nDCG@5 0.99 (vector alone 0.66 / 0.93), Arabic Hit@3 1.00, vocalized = bare top-1 3/3, and a dynamic-chunking coherence gap of +0.14 vs +0.01 for fixed windows. Cost: about 900 MB RSS, ~66 ms per vector query and ~2 docs/s ingest on CPU.
+
+This run found a real bug: the neural models were given **vocalized** text. Pretrained multilingual models saw almost only unvocalized Arabic, so harakat split words into unfamiliar sub-word pieces, and the same question with and without harakat got different vectors. Before the fix: vector Hit@1 0.45, hybrid Hit@1 0.86, Arabic Hit@3 0.80, vocalized = bare only 2/3. Neural models now receive the text with harakat removed (`embeddings.neural_input`; the stored text keeps every mark), and the vector collection name records the input format so old vectors are rebuilt automatically.
 
 All benchmark runs use isolated stores: every in-memory parser gets its own UUID collection, so no run can see another's vectors.
 
@@ -225,7 +229,7 @@ pyxon_parser/
 app.py           Gradio demo + REST API on one port
 benchmarks/      queries.json, run_benchmark.py, results/, heldout/ (unseen-document evaluation)
 samples/         sample corpus (EN/AR, vocalized Arabic, forms) + build script
-tests/           pytest suite (125 tests)
+tests/           pytest suite (126 tests)
 docs/            demo.gif and the script that records it
 .github/         CI: tests on Python 3.11/3.12, held-out evaluation, Docker build
 ```
