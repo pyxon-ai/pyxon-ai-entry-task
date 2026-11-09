@@ -1,0 +1,862 @@
+{
+  "embedder": "hashing-char2-5+word1-2-2048",
+  "python": "3.13.18",
+  "date": "2026-11-09",
+  "strategy": {
+    "accuracy": 1.0,
+    "rows": [
+      {
+        "file": "coffee_history.docx",
+        "expected": "dynamic",
+        "predicted": "dynamic",
+        "score": 0.9,
+        "doc_type": "book / multi-section document",
+        "correct": true
+      },
+      {
+        "file": "coffee_history.pdf",
+        "expected": "dynamic",
+        "predicted": "dynamic",
+        "score": 0.9,
+        "doc_type": "book / multi-section document",
+        "correct": true
+      },
+      {
+        "file": "water_ar.txt",
+        "expected": "dynamic",
+        "predicted": "dynamic",
+        "score": 0.9,
+        "doc_type": "book / multi-section document",
+        "correct": true
+      },
+      {
+        "file": "water_ar.docx",
+        "expected": "dynamic",
+        "predicted": "dynamic",
+        "score": 0.9,
+        "doc_type": "book / multi-section document",
+        "correct": true
+      },
+      {
+        "file": "water_ar.pdf",
+        "expected": "dynamic",
+        "predicted": "dynamic",
+        "score": 0.9,
+        "doc_type": "book / multi-section document",
+        "correct": true
+      },
+      {
+        "file": "inspection_report.txt",
+        "expected": "fixed",
+        "predicted": "fixed",
+        "score": -1.8,
+        "doc_type": "form / structured report",
+        "correct": true
+      },
+      {
+        "file": "inspection_report.pdf",
+        "expected": "fixed",
+        "predicted": "fixed",
+        "score": -1.2,
+        "doc_type": "form / structured report",
+        "correct": true
+      },
+      {
+        "file": "employee_form_ar.docx",
+        "expected": "fixed",
+        "predicted": "fixed",
+        "score": -1.2,
+        "doc_type": "form / structured report",
+        "correct": true
+      },
+      {
+        "file": "employee_form_ar.doc",
+        "expected": "fixed",
+        "predicted": "fixed",
+        "score": -1.2,
+        "doc_type": "form / structured report",
+        "correct": true
+      }
+    ]
+  },
+  "retrieval": {
+    "editable (txt/docx/doc)": {
+      "modes": {
+        "vector": {
+          "hit@1": 0.931,
+          "hit@3": 1.0,
+          "hit@5": 1.0,
+          "mrr@5": 0.966,
+          "ndcg@5": 0.961,
+          "misses": []
+        },
+        "keyword": {
+          "hit@1": 1.0,
+          "hit@3": 1.0,
+          "hit@5": 1.0,
+          "mrr@5": 1.0,
+          "ndcg@5": 1.0,
+          "misses": []
+        },
+        "graph": {
+          "hit@1": 0.517,
+          "hit@3": 0.517,
+          "hit@5": 0.517,
+          "mrr@5": 0.517,
+          "ndcg@5": 0.517,
+          "misses": [
+            "en-1",
+            "en-4",
+            "en-6",
+            "en-9",
+            "ar-1",
+            "ar-1b",
+            "ar-3",
+            "ar-5",
+            "ar-5b",
+            "ar-7",
+            "ar-9",
+            "ar-10",
+            "ar-11",
+            "mix-1"
+          ]
+        },
+        "hybrid": {
+          "hit@1": 0.966,
+          "hit@3": 1.0,
+          "hit@5": 1.0,
+          "mrr@5": 0.983,
+          "ndcg@5": 0.987,
+          "misses": []
+        }
+      },
+      "hybrid_by_language": {
+        "ar": {
+          "n": 15,
+          "hit@3": 1.0
+        },
+        "en": {
+          "n": 13,
+          "hit@3": 1.0
+        },
+        "mixed": {
+          "n": 1,
+          "hit@3": 1.0
+        }
+      }
+    },
+    "pdf": {
+      "modes": {
+        "vector": {
+          "hit@1": 0.897,
+          "hit@3": 1.0,
+          "hit@5": 1.0,
+          "mrr@5": 0.948,
+          "ndcg@5": 0.948,
+          "misses": []
+        },
+        "keyword": {
+          "hit@1": 1.0,
+          "hit@3": 1.0,
+          "hit@5": 1.0,
+          "mrr@5": 1.0,
+          "ndcg@5": 1.0,
+          "misses": []
+        },
+        "graph": {
+          "hit@1": 0.517,
+          "hit@3": 0.517,
+          "hit@5": 0.517,
+          "mrr@5": 0.517,
+          "ndcg@5": 0.517,
+          "misses": [
+            "en-1",
+            "en-4",
+            "en-6",
+            "en-9",
+            "ar-1",
+            "ar-1b",
+            "ar-3",
+            "ar-5",
+            "ar-5b",
+            "ar-7",
+            "ar-9",
+            "ar-10",
+            "ar-11",
+            "mix-1"
+          ]
+        },
+        "hybrid": {
+          "hit@1": 0.966,
+          "hit@3": 1.0,
+          "hit@5": 1.0,
+          "mrr@5": 0.983,
+          "ndcg@5": 0.987,
+          "misses": []
+        }
+      },
+      "hybrid_by_language": {
+        "ar": {
+          "n": 15,
+          "hit@3": 1.0
+        },
+        "en": {
+          "n": 13,
+          "hit@3": 1.0
+        },
+        "mixed": {
+          "n": 1,
+          "hit@3": 1.0
+        }
+      }
+    }
+  },
+  "chunking": {
+    "rows": [
+      {
+        "file": "coffee_history.docx",
+        "strategy": "fixed",
+        "auto_choice": false,
+        "chunks": 7,
+        "avg_tokens": 97.1,
+        "size_cv": 0.258,
+        "min_tokens": 39,
+        "max_tokens": 118,
+        "section_crossing_rate": 0.714,
+        "clean_boundary_rate": 1.0,
+        "intra_chunk_coherence": 0.299,
+        "cross_boundary_similarity": 0.322,
+        "coherence_gap": -0.023
+      },
+      {
+        "file": "coffee_history.docx",
+        "strategy": "dynamic",
+        "auto_choice": true,
+        "chunks": 6,
+        "avg_tokens": 102.2,
+        "size_cv": 0.189,
+        "min_tokens": 79,
+        "max_tokens": 140,
+        "section_crossing_rate": 0.0,
+        "clean_boundary_rate": 1.0,
+        "intra_chunk_coherence": 0.308,
+        "cross_boundary_similarity": 0.295,
+        "coherence_gap": 0.012
+      },
+      {
+        "file": "coffee_history.pdf",
+        "strategy": "fixed",
+        "auto_choice": false,
+        "chunks": 7,
+        "avg_tokens": 97.1,
+        "size_cv": 0.258,
+        "min_tokens": 39,
+        "max_tokens": 118,
+        "section_crossing_rate": 0.714,
+        "clean_boundary_rate": 1.0,
+        "intra_chunk_coherence": 0.299,
+        "cross_boundary_similarity": 0.322,
+        "coherence_gap": -0.023
+      },
+      {
+        "file": "coffee_history.pdf",
+        "strategy": "dynamic",
+        "auto_choice": true,
+        "chunks": 6,
+        "avg_tokens": 102.2,
+        "size_cv": 0.189,
+        "min_tokens": 79,
+        "max_tokens": 140,
+        "section_crossing_rate": 0.0,
+        "clean_boundary_rate": 1.0,
+        "intra_chunk_coherence": 0.308,
+        "cross_boundary_similarity": 0.295,
+        "coherence_gap": 0.012
+      },
+      {
+        "file": "water_ar.txt",
+        "strategy": "fixed",
+        "auto_choice": false,
+        "chunks": 4,
+        "avg_tokens": 89.8,
+        "size_cv": 0.303,
+        "min_tokens": 43,
+        "max_tokens": 110,
+        "section_crossing_rate": 0.75,
+        "clean_boundary_rate": 1.0,
+        "intra_chunk_coherence": 0.224,
+        "cross_boundary_similarity": 0.261,
+        "coherence_gap": -0.037
+      },
+      {
+        "file": "water_ar.txt",
+        "strategy": "dynamic",
+        "auto_choice": true,
+        "chunks": 5,
+        "avg_tokens": 62.6,
+        "size_cv": 0.133,
+        "min_tokens": 56,
+        "max_tokens": 77,
+        "section_crossing_rate": 0.0,
+        "clean_boundary_rate": 1.0,
+        "intra_chunk_coherence": 0.249,
+        "cross_boundary_similarity": 0.223,
+        "coherence_gap": 0.026
+      },
+      {
+        "file": "water_ar.docx",
+        "strategy": "fixed",
+        "auto_choice": false,
+        "chunks": 4,
+        "avg_tokens": 89.0,
+        "size_cv": 0.303,
+        "min_tokens": 43,
+        "max_tokens": 110,
+        "section_crossing_rate": 0.75,
+        "clean_boundary_rate": 1.0,
+        "intra_chunk_coherence": 0.222,
+        "cross_boundary_similarity": 0.259,
+        "coherence_gap": -0.037
+      },
+      {
+        "file": "water_ar.docx",
+        "strategy": "dynamic",
+        "auto_choice": true,
+        "chunks": 5,
+        "avg_tokens": 62.0,
+        "size_cv": 0.142,
+        "min_tokens": 54,
+        "max_tokens": 77,
+        "section_crossing_rate": 0.0,
+        "clean_boundary_rate": 1.0,
+        "intra_chunk_coherence": 0.245,
+        "cross_boundary_similarity": 0.222,
+        "coherence_gap": 0.023
+      },
+      {
+        "file": "water_ar.pdf",
+        "strategy": "fixed",
+        "auto_choice": false,
+        "chunks": 4,
+        "avg_tokens": 89.8,
+        "size_cv": 0.303,
+        "min_tokens": 43,
+        "max_tokens": 110,
+        "section_crossing_rate": 0.75,
+        "clean_boundary_rate": 1.0,
+        "intra_chunk_coherence": 0.224,
+        "cross_boundary_similarity": 0.261,
+        "coherence_gap": -0.037
+      },
+      {
+        "file": "water_ar.pdf",
+        "strategy": "dynamic",
+        "auto_choice": true,
+        "chunks": 5,
+        "avg_tokens": 62.6,
+        "size_cv": 0.133,
+        "min_tokens": 56,
+        "max_tokens": 77,
+        "section_crossing_rate": 0.0,
+        "clean_boundary_rate": 1.0,
+        "intra_chunk_coherence": 0.249,
+        "cross_boundary_similarity": 0.223,
+        "coherence_gap": 0.026
+      },
+      {
+        "file": "inspection_report.txt",
+        "strategy": "fixed",
+        "auto_choice": true,
+        "chunks": 3,
+        "avg_tokens": 98.7,
+        "size_cv": 0.22,
+        "min_tokens": 68,
+        "max_tokens": 116,
+        "section_crossing_rate": 0.0,
+        "clean_boundary_rate": 1.0,
+        "intra_chunk_coherence": 0.214,
+        "cross_boundary_similarity": 0.232,
+        "coherence_gap": -0.018
+      },
+      {
+        "file": "inspection_report.txt",
+        "strategy": "dynamic",
+        "auto_choice": false,
+        "chunks": 2,
+        "avg_tokens": 143.0,
+        "size_cv": 0.021,
+        "min_tokens": 140,
+        "max_tokens": 146,
+        "section_crossing_rate": 0.0,
+        "clean_boundary_rate": 1.0,
+        "intra_chunk_coherence": 0.233,
+        "cross_boundary_similarity": 0.24,
+        "coherence_gap": -0.006
+      },
+      {
+        "file": "inspection_report.pdf",
+        "strategy": "fixed",
+        "auto_choice": true,
+        "chunks": 3,
+        "avg_tokens": 109.7,
+        "size_cv": 0.095,
+        "min_tokens": 95,
+        "max_tokens": 118,
+        "section_crossing_rate": 0.0,
+        "clean_boundary_rate": 1.0,
+        "intra_chunk_coherence": 0.232,
+        "cross_boundary_similarity": 0.246,
+        "coherence_gap": -0.014
+      },
+      {
+        "file": "inspection_report.pdf",
+        "strategy": "dynamic",
+        "auto_choice": false,
+        "chunks": 6,
+        "avg_tokens": 48.7,
+        "size_cv": 0.154,
+        "min_tokens": 40,
+        "max_tokens": 61,
+        "section_crossing_rate": 0.0,
+        "clean_boundary_rate": 1.0,
+        "intra_chunk_coherence": 0.217,
+        "cross_boundary_similarity": 0.24,
+        "coherence_gap": -0.023
+      },
+      {
+        "file": "employee_form_ar.docx",
+        "strategy": "fixed",
+        "auto_choice": true,
+        "chunks": 2,
+        "avg_tokens": 91.5,
+        "size_cv": 0.301,
+        "min_tokens": 64,
+        "max_tokens": 119,
+        "section_crossing_rate": 0.0,
+        "clean_boundary_rate": 1.0,
+        "intra_chunk_coherence": 0.458,
+        "cross_boundary_similarity": 0.502,
+        "coherence_gap": -0.044
+      },
+      {
+        "file": "employee_form_ar.docx",
+        "strategy": "dynamic",
+        "auto_choice": false,
+        "chunks": 1,
+        "avg_tokens": 164.0,
+        "size_cv": 0.0,
+        "min_tokens": 164,
+        "max_tokens": 164,
+        "section_crossing_rate": 0.0,
+        "clean_boundary_rate": 1.0,
+        "intra_chunk_coherence": 0.594,
+        "cross_boundary_similarity": 0.0,
+        "coherence_gap": 0.594
+      },
+      {
+        "file": "employee_form_ar.doc",
+        "strategy": "fixed",
+        "auto_choice": true,
+        "chunks": 2,
+        "avg_tokens": 91.5,
+        "size_cv": 0.301,
+        "min_tokens": 64,
+        "max_tokens": 119,
+        "section_crossing_rate": 0.0,
+        "clean_boundary_rate": 1.0,
+        "intra_chunk_coherence": 0.458,
+        "cross_boundary_similarity": 0.502,
+        "coherence_gap": -0.044
+      },
+      {
+        "file": "employee_form_ar.doc",
+        "strategy": "dynamic",
+        "auto_choice": false,
+        "chunks": 1,
+        "avg_tokens": 164.0,
+        "size_cv": 0.0,
+        "min_tokens": 164,
+        "max_tokens": 164,
+        "section_crossing_rate": 0.0,
+        "clean_boundary_rate": 1.0,
+        "intra_chunk_coherence": 0.594,
+        "cross_boundary_similarity": 0.0,
+        "coherence_gap": 0.594
+      }
+    ],
+    "summary": {
+      "fixed (all docs)": {
+        "section_crossing_rate": 0.409,
+        "clean_boundary_rate": 1.0,
+        "intra_chunk_coherence": 0.292,
+        "coherence_gap": -0.031,
+        "size_cv": 0.26
+      },
+      "dynamic (all docs)": {
+        "section_crossing_rate": 0.0,
+        "clean_boundary_rate": 1.0,
+        "intra_chunk_coherence": 0.333,
+        "coherence_gap": 0.14,
+        "size_cv": 0.107
+      },
+      "auto-selected": {
+        "section_crossing_rate": 0.0,
+        "clean_boundary_rate": 1.0,
+        "intra_chunk_coherence": 0.302,
+        "coherence_gap": -0.002,
+        "size_cv": 0.189
+      }
+    }
+  },
+  "performance": {
+    "ingest": [
+      {
+        "file": "coffee_history.docx",
+        "tokens": 654,
+        "chunks": 6,
+        "load": 0.0726,
+        "analyze": 0.0272,
+        "chunk": 0.0024,
+        "embed": 0.0466,
+        "raptor": 0.0415,
+        "store": 0.0778,
+        "total": 0.2682,
+        "tokens_per_sec": 2438,
+        "peak_mem_mb": 2.22,
+        "rss_mb": 311.0
+      },
+      {
+        "file": "coffee_history.pdf",
+        "tokens": 654,
+        "chunks": 6,
+        "load": 0.0977,
+        "analyze": 0.0189,
+        "chunk": 0.0016,
+        "embed": 0.0375,
+        "raptor": 0.031,
+        "store": 0.0553,
+        "total": 0.242,
+        "tokens_per_sec": 2702,
+        "peak_mem_mb": 1.21,
+        "rss_mb": 311.1
+      },
+      {
+        "file": "water_ar.txt",
+        "tokens": 342,
+        "chunks": 5,
+        "load": 0.0006,
+        "analyze": 0.0291,
+        "chunk": 0.0011,
+        "embed": 0.0278,
+        "raptor": 0.0215,
+        "store": 0.0546,
+        "total": 0.1347,
+        "tokens_per_sec": 2539,
+        "peak_mem_mb": 0.71,
+        "rss_mb": 311.2
+      },
+      {
+        "file": "water_ar.docx",
+        "tokens": 342,
+        "chunks": 5,
+        "load": 0.0567,
+        "analyze": 0.029,
+        "chunk": 0.001,
+        "embed": 0.0273,
+        "raptor": 0.0226,
+        "store": 0.0589,
+        "total": 0.1955,
+        "tokens_per_sec": 1749,
+        "peak_mem_mb": 2.22,
+        "rss_mb": 311.2
+      },
+      {
+        "file": "water_ar.pdf",
+        "tokens": 342,
+        "chunks": 5,
+        "load": 0.6652,
+        "analyze": 0.0328,
+        "chunk": 0.0011,
+        "embed": 0.0341,
+        "raptor": 0.0291,
+        "store": 0.0698,
+        "total": 0.8321,
+        "tokens_per_sec": 411,
+        "peak_mem_mb": 2.77,
+        "rss_mb": 311.3
+      },
+      {
+        "file": "inspection_report.txt",
+        "tokens": 292,
+        "chunks": 3,
+        "load": 0.0007,
+        "analyze": 0.0042,
+        "chunk": 0.0008,
+        "embed": 0.0247,
+        "raptor": 0.008,
+        "store": 0.0278,
+        "total": 0.0661,
+        "tokens_per_sec": 4418,
+        "peak_mem_mb": 0.45,
+        "rss_mb": 311.3
+      },
+      {
+        "file": "inspection_report.pdf",
+        "tokens": 292,
+        "chunks": 3,
+        "load": 0.0675,
+        "analyze": 0.0035,
+        "chunk": 0.0008,
+        "embed": 0.0203,
+        "raptor": 0.0095,
+        "store": 0.0284,
+        "total": 0.13,
+        "tokens_per_sec": 2246,
+        "peak_mem_mb": 0.65,
+        "rss_mb": 311.3
+      },
+      {
+        "file": "employee_form_ar.docx",
+        "tokens": 170,
+        "chunks": 2,
+        "load": 0.1372,
+        "analyze": 0.0077,
+        "chunk": 0.0005,
+        "embed": 0.0176,
+        "raptor": 0.0149,
+        "store": 0.0349,
+        "total": 0.2128,
+        "tokens_per_sec": 799,
+        "peak_mem_mb": 2.22,
+        "rss_mb": 311.3
+      },
+      {
+        "file": "employee_form_ar.doc",
+        "tokens": 170,
+        "chunks": 2,
+        "load": 0.2453,
+        "analyze": 0.01,
+        "chunk": 0.0007,
+        "embed": 0.0251,
+        "raptor": 0.0175,
+        "store": 0.0313,
+        "total": 0.33,
+        "tokens_per_sec": 515,
+        "peak_mem_mb": 0.39,
+        "rss_mb": 311.4
+      }
+    ],
+    "query_latency": {
+      "vector": {
+        "p50_ms": 18.34,
+        "p95_ms": 51.74
+      },
+      "keyword": {
+        "p50_ms": 0.37,
+        "p95_ms": 19.61
+      },
+      "graph": {
+        "p50_ms": 0.18,
+        "p95_ms": 1.55
+      },
+      "hybrid": {
+        "p50_ms": 3.56,
+        "p95_ms": 22.29
+      }
+    },
+    "scalability": [
+      {
+        "documents": 5,
+        "leaf_chunks": 28,
+        "ingest_s": 0.12,
+        "docs_per_sec": 42.4,
+        "hybrid_p50_ms": 19.09
+      },
+      {
+        "documents": 20,
+        "leaf_chunks": 110,
+        "ingest_s": 0.58,
+        "docs_per_sec": 34.4,
+        "hybrid_p50_ms": 8.89
+      },
+      {
+        "documents": 50,
+        "leaf_chunks": 275,
+        "ingest_s": 1.49,
+        "docs_per_sec": 33.5,
+        "hybrid_p50_ms": 6.24
+      },
+      {
+        "documents": 100,
+        "leaf_chunks": 550,
+        "ingest_s": 2.61,
+        "docs_per_sec": 38.3,
+        "hybrid_p50_ms": 10.36
+      }
+    ]
+  },
+  "arabic": {
+    "diacritics_preserved": {
+      "source_total": 1298,
+      "sql_total": 1298,
+      "vector_store_total": 1298,
+      "per_mark_equal": true,
+      "passed": true,
+      "water_ar.docx_total": 1298
+    },
+    "diacritic_insensitive_retrieval": {
+      "query_pairs": [
+        {
+          "pair": [
+            "مِمَّ يَتَكَوَّنُ جُزَيْءُ الْمَاءِ؟",
+            "مم يتكون جزيء الماء؟"
+          ],
+          "same_top1": true
+        },
+        {
+          "pair": [
+            "كيف تتكون السحب؟",
+            "كَيْفَ تَتَكَوَّنُ السُّحُبُ؟"
+          ],
+          "same_top1": true
+        },
+        {
+          "pair": [
+            "سد مأرب",
+            "سَدُّ مَأْرِبَ"
+          ],
+          "same_top1": true
+        }
+      ],
+      "word_level_agreement": 1.0,
+      "passed": true
+    },
+    "normalization": {
+      "cases": [
+        {
+          "input": "أحمد",
+          "expected": "احمد",
+          "got": "احمد",
+          "ok": true
+        },
+        {
+          "input": "إسلام",
+          "expected": "اسلام",
+          "got": "اسلام",
+          "ok": true
+        },
+        {
+          "input": "آمال",
+          "expected": "امال",
+          "got": "امال",
+          "ok": true
+        },
+        {
+          "input": "مدرسة",
+          "expected": "مدرسه",
+          "got": "مدرسه",
+          "ok": true
+        },
+        {
+          "input": "مستشفى",
+          "expected": "مستشفي",
+          "got": "مستشفي",
+          "ok": true
+        },
+        {
+          "input": "مسؤول",
+          "expected": "مسوول",
+          "got": "مسوول",
+          "ok": true
+        },
+        {
+          "input": "العـــربية",
+          "expected": "العربيه",
+          "got": "العربيه",
+          "ok": true
+        },
+        {
+          "input": "كِتَابٌ",
+          "expected": "كتاب",
+          "got": "كتاب",
+          "ok": true
+        },
+        {
+          "input": "١٢٣٤",
+          "expected": "1234",
+          "got": "1234",
+          "ok": true
+        },
+        {
+          "input": "ﻫﻠﻠ",
+          "expected": "هلل",
+          "got": "هلل",
+          "ok": true
+        }
+      ],
+      "passed": true
+    },
+    "encodings": {
+      "cases": {
+        "utf-8": {
+          "detected": "utf-8",
+          "roundtrip": true
+        },
+        "utf-16": {
+          "detected": "utf-16",
+          "roundtrip": true
+        },
+        "cp1256": {
+          "detected": "cp1256",
+          "roundtrip": true
+        },
+        "iso-8859-6": {
+          "detected": "iso-8859-6",
+          "roundtrip": true
+        }
+      },
+      "passed": true
+    },
+    "language_direction": {
+      "cases": [
+        {
+          "text": "الْمَاءُ أَصْلُ الْحَيَاةِ",
+          "lang": "ar",
+          "dir": "rtl",
+          "ok": true
+        },
+        {
+          "text": "Coffee began in Ethiopia",
+          "lang": "en",
+          "dir": "ltr",
+          "ok": true
+        },
+        {
+          "text": "Machine learning تعلم الآلة",
+          "lang": "mixed",
+          "dir": "ltr",
+          "ok": true
+        }
+      ],
+      "passed": true
+    },
+    "pdf_fidelity": {
+      "char_similarity_bare": 1.0,
+      "garble_score": 0.0,
+      "diacritics_recovered_ratio": 0.889,
+      "extractor_per_page": [
+        "pypdf",
+        "pypdf"
+      ]
+    }
+  },
+  "ocr": {
+    "available": true,
+    "char_similarity": 0.999,
+    "word_recall": 0.984,
+    "seconds": 1.0,
+    "extractor_per_page": [
+      "ocr"
+    ]
+  }
+}

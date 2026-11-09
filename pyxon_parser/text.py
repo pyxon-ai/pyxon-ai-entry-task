@@ -1,0 +1,145 @@
+"""Language-agnostic text helpers: sentence splitting, tokenizing, keywords."""
+from __future__ import annotations
+
+import math
+import re
+from collections import Counter
+
+from .arabic import ARABIC_STOPWORDS, normalize_for_index
+
+# Sentence ends: Latin . ! ? and Arabic question mark / full stop, followed by space.
+# Split after . ! ? and Arabic ؟ ۔ — but not after a single-letter initial ("L. Nasser") or "e.g."/"i.e."
+_SENT_SPLIT_RE = re.compile(r"(?<![\s(][A-Za-z]\.)(?<!^[A-Za-z]\.)(?<!\be\.g\.)(?<!\bi\.e\.)(?<=[.!?\u061F\u06D4])\s+")
+# \w covers Arabic letters/digits; harakat (combining marks) are added so vocalized words stay whole.
+_TOKEN_RE = re.compile(r"[\w\u064B-\u065F\u0670]+", re.UNICODE)
+
+ENGLISH_STOPWORDS = set(
+    """a an the and or but if then else of to in on at by for with from as is are was were be been
+    being it its this that these those there here which who whom whose what when where why how all
+    any both each few more most other some such no nor not only own same so than too very can will
+    just should now also into about over after before between through during under again further
+    once he she they them his her their we our you your i me my do does did doing have has had
+    having would could may might must shall up down out off per via upon while within without""".split()
+)
+# Structural words ("chapter", "الفصل") say nothing about content.
+STRUCTURAL = {"chapter", "section", "part", "فصل", "الفصل", "باب", "الباب", "قسم", "القسم"}
+STOPWORDS = ENGLISH_STOPWORDS | ARABIC_STOPWORDS | STRUCTURAL
+
+# Bump whenever content_tokens() changes: a stored index built with an older tokenizer is then
+# rebuilt from the chunk texts on open (v2: af'al broken plurals; v3: light stemming).
+LEXICAL_VERSION = 3  # v3: light Arabic stemming
+
+
+def split_sentences(text: str) -> list[str]:
+    parts = _SENT_SPLIT_RE.split(text.strip())
+    return [p.strip() for p in parts if p.strip()]
+
+
+def tokenize(text: str) -> list[str]:
+    """Normalized word tokens (diacritics stripped, lowercase)."""
+    return _TOKEN_RE.findall(normalize_for_index(text))
+
+
+def token_forms(text: str) -> list[tuple[str, list[str]]]:
+    """(word, extra forms) per content word. The word is normalized and loses the Arabic definite
+    article; the extra forms of an Arabic word are its light stem and broken-plural singular
+    (e.g. "للمياه" -> "ميا", "الأمطار" -> "مطر"), which let different surface forms share a term."""
+    out = []
+    for t in tokenize(text):
+        is_arabic = "\u0600" <= t[0] <= "\u06FF"
+        if t in STOPWORDS or len(t) < (2 if is_arabic else 3) or t.isdigit():
+            continue
+        # Strip the Arabic definite article so "المياه" and "مياه" match.
+        if t.startswith("ال") and len(t) > 4:
+            t = t[2:]
+        elif t.startswith(("وال", "بال", "فال", "كال")) and len(t) > 5:
+            t = t[3:]
+        extra: list[str] = []
+        if is_arabic and STEM_MODE:
+            forms = {light_stem(t), broken_plural_singular(t)}
+            if STEM_MODE == "isri":
+                forms.add(_isri(t))
+            extra = sorted(x for x in forms if x and x != t)
+        out.append((t, extra))
+    return out
+
+
+def content_tokens(text: str, expand: bool = True) -> list[str]:
+    """Content words (see ``token_forms``); with ``expand`` the extra Arabic forms follow each word.
+    Queries use the expanded list; keywords, summaries, the term graph and the hashing embedder use
+    ``expand=False`` so stems do not distort their statistics."""
+    out = []
+    for t, extra in token_forms(text):
+        out.append(t)
+        if expand:
+            out.extend(extra)
+    return out
+
+
+def index_fields(text: str) -> tuple[str, str]:
+    """The two keyword-index columns: exact words, and the extra Arabic forms (weighted lower in
+    BM25, so an exact match still outranks a stem-only match)."""
+    forms = token_forms(text)
+    return " ".join(t for t, _ in forms), " ".join(x for _, extra in forms for x in extra)
+
+
+# "light" (default): light stemming + af'al broken plurals. "isri": also the ISRI root (tested, see
+# README: it recalls more but adds noise). "" disables expansion. Override with PYXON_ARABIC_STEM.
+STEM_MODE = __import__("os").getenv("PYXON_ARABIC_STEM", "light")
+_PREFIXES = ("وال", "بال", "كال", "فال", "لل", "ال")
+_SUFFIXES = ("ها", "ان", "ات", "ون", "ين", "يه", "ه", "ي")
+
+
+def light_stem(token: str) -> str:
+    """Light Arabic stemmer in the style of Larkey et al.'s Light10: drop a leading و, one
+    article-like prefix (ال، لل، بال ...) and the common suffixes (ات، ون، ين، ها، ة ...), keeping at
+    least two letters. Works on normalized text (ة is already ه, ى is already ي)."""
+    t = token
+    if len(t) > 3 and t[0] == "و":
+        t = t[1:]
+    for p in _PREFIXES:
+        if t.startswith(p) and len(t) - len(p) >= 2:
+            t = t[len(p):]
+            break
+    for suf in _SUFFIXES:
+        if t.endswith(suf) and len(t) - len(suf) >= 2:
+            t = t[: -len(suf)]
+    return t
+
+
+def _isri(token: str) -> str | None:
+    try:
+        from nltk.stem.isri import ISRIStemmer
+    except ImportError:
+        return None
+    global _ISRI
+    if "_ISRI" not in globals():
+        _ISRI = ISRIStemmer()
+    return _ISRI.stem(token)
+
+
+def broken_plural_singular(token: str) -> str | None:
+    """Singular of the most common Arabic broken-plural pattern, af'al (أفعال):
+    امطار -> مطر, انهار -> نهر, اسعار -> سعر, اعمال -> عمل. Light stemming cannot reach these
+    because the plural is formed inside the word, so "المطر" would never match "الأمطار".
+    The token is already normalized (hamza forms of alef unified, diacritics removed)."""
+    if len(token) == 5 and token[0] == "ا" and token[3] == "ا" and "ا" not in token[1:3] + token[4]:
+        return token[1] + token[2] + token[4]
+    return None
+
+
+def count_tokens(text: str) -> int:
+    """Cheap token count (words). Good enough for chunk sizing in both scripts."""
+    return len(_TOKEN_RE.findall(text))
+
+
+def top_keywords(text: str, k: int = 10, corpus_df: Counter | None = None, n_docs: int = 1) -> list[str]:
+    """TF (or TF-IDF when document frequencies are supplied) keyword ranking."""
+    tf = Counter(content_tokens(text, expand=False))
+    if not tf:
+        return []
+    if corpus_df:
+        scored = {t: c * math.log((1 + n_docs) / (1 + corpus_df.get(t, 0))) for t, c in tf.items()}
+    else:
+        scored = dict(tf)
+    return [t for t, _ in sorted(scored.items(), key=lambda x: (-x[1], x[0]))[:k]]
