@@ -47,6 +47,20 @@ My solution to the [Pyxon AI junior engineer entry task](TASK.md): a document pa
 | REST API | **FastAPI** (`pyxon_parser/api.py`): upload, list, get, delete documents; search; ask; read-only SQL; health. Served by the same process as the demo (UI at `/`, API at `/api`, interactive docs at **`/docs`**), or alone with `uvicorn pyxon_parser.api:app`. Optional `PYXON_API_KEY` protects upload and delete |
 | RAG integration | `RAGPipeline.ask()` sends corpus-metadata questions to **SQL** through a small intent parser (`query_router.py`): a question goes to SQL only if *every* content word is metadata vocabulary (documents, chunks, counts, languages, file types, chunking strategy, diacritics), so "What is the marketing strategy for Zephyr?" still goes to search. Filters and document scope become a **parameterised** SELECT, and SQLite enforces read-only access with an authorizer. Everything else goes through retrieval, a cited prompt and an LLM (Anthropic or any OpenAI-compatible API via env vars). Without a key, an extractive answer quotes only sentences that cover the question well, or says it could not find the answer |
 
+## Prerequisites
+
+| | Needed for | Install |
+|---|---|---|
+| **Python 3.11+** (tested on 3.11, 3.12, 3.13) and git | everything | [python.org](https://www.python.org/downloads/) |
+| ~1 GB RAM, ~1.5 GB disk | the default setup (Chroma, Gradio, PyMuPDF) | |
+| **LibreOffice** *(optional)* | legacy `.doc` files | Windows/macOS: [libreoffice.org](https://www.libreoffice.org/download/) · Ubuntu: `sudo apt install libreoffice-writer` |
+| **Tesseract + Arabic data** *(optional)* | scanned PDFs (OCR) | Windows: [UB Mannheim installer](https://github.com/UB-Mannheim/tesseract/wiki), tick *Arabic* under additional languages · macOS: `brew install tesseract tesseract-lang` · Ubuntu: `sudo apt install tesseract-ocr tesseract-ocr-ara` |
+| **fastembed** *(optional)* | the neural multilingual model (`PYXON_EMBEDDER=fastembed`), ~235 MB download, ~900 MB RAM | `pip install fastembed` |
+| **sentence-transformers** *(optional)* | the Arabic models (`arabert`, `camelbert`), pulls in PyTorch | `pip install sentence-transformers` |
+| **Docker** *(alternative)* | everything above in one image | `docker build -t pyxon . && docker run -p 7860:7860 pyxon` |
+
+Without the optional tools the app still runs: `.doc` and scanned-PDF uploads get a clear message saying what to install, and their tests are skipped. No API key is needed; set `ANTHROPIC_API_KEY` or `OPENAI_API_KEY` only for LLM-written answers.
+
 ## Quick start
 
 ```bash
