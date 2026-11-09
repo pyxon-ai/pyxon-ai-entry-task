@@ -177,8 +177,11 @@ def _same_passage(a: str, b: str, threshold: float = 0.95) -> bool:
     marks or spaces still matches its TXT original)."""
     if a == b:
         return True
-    if not a or not b or min(len(a), len(b)) / max(len(a), len(b)) < threshold:
+    if not a or not b or min(len(a), len(b)) / max(len(a), len(b)) < 0.8:
         return False
+    # one copy has an extra title line or heading (e.g. the TXT starts with the book title)
+    if a in b or b in a:
+        return True
     from difflib import SequenceMatcher
 
     return SequenceMatcher(None, a, b, autojunk=False).ratio() >= threshold

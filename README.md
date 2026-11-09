@@ -52,7 +52,7 @@ My solution to the [Pyxon AI junior engineer entry task](TASK.md): a document pa
 ```bash
 pip install -r requirements-dev.txt -c constraints.txt   # Python 3.11+; constraints = the tested versions
 python app.py                            # demo on http://localhost:7860 (sample docs auto-load)
-pytest                                   # 126 tests (unit, API, OCR, held-out documents, broken files, review regressions)
+pytest                                   # 127 tests (unit, API, OCR, held-out documents, broken files, review regressions)
 python -m benchmarks.run_benchmark       # writes benchmarks/results/results.{md,json}
 ```
 
@@ -229,7 +229,7 @@ pyxon_parser/
 app.py           Gradio demo + REST API on one port
 benchmarks/      queries.json, run_benchmark.py, results/, heldout/ (unseen-document evaluation)
 samples/         sample corpus (EN/AR, vocalized Arabic, forms) + build script
-tests/           pytest suite (126 tests)
+tests/           pytest suite (127 tests)
 docs/            demo.gif and the script that records it
 .github/         CI: tests on Python 3.11/3.12, held-out evaluation, Docker build
 ```

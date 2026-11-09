@@ -384,3 +384,21 @@ def test_neural_models_get_text_without_harakat():
     fake = FastEmbedEmbedder.__new__(FastEmbedEmbedder)
     fake.name = "some/model"
     assert fake.index_key == f"some/model#{NEURAL_INPUT_VERSION}"
+
+
+def test_duplicate_with_extra_title_line_is_collapsed():
+    """The TXT copy of a chunk starts with the book title, the DOCX copy does not: still one result."""
+    from pyxon_parser.retrieval import _same_passage
+
+    body = "الماءهواساسالحياهعليسطحالارض" * 8
+    assert _same_passage("كتابالماءواسراره" + body, body)
+    assert not _same_passage(body, body[: len(body) // 2])  # half a passage is not a duplicate
+    samples = Path(__file__).resolve().parent.parent / "samples"
+    p = PyxonParser(build_raptor=False)
+    for name in ["water_ar.txt", "water_ar.docx"]:
+        p.ingest(samples / name)
+    res = p.search("الماء هو أساس الحياة على سطح الأرض", k=5)
+    files = [r.filename for r in res]
+    assert len(files) == len(set(r.chunk_id for r in res))
+    assert not any(a.text[:40] == b.text[:40] for i, a in enumerate(res) for b in res[i + 1:])
+    assert res[0].also_in  # the other copy is listed, not shown twice
