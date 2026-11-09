@@ -143,11 +143,11 @@ python -m benchmarks.heldout.run_heldout     # writes benchmarks/heldout/results
 | Questions sharing words with the answer (n=20) | Hit@1 0.95 · Hit@3 1.00 | Hit@1 0.90 · Hit@3 1.00 |
 | Paraphrased questions (n=7) | Hit@1 0.43 · Hit@3 0.43 | Hit@1 0.43 · **Hit@3 0.86** |
 | English question about an Arabic document (n=1) | miss | **rank 1** |
-| All 28 questions | Hit@1 0.79 · Hit@3 0.82 · MRR 0.80 | Hit@1 0.79 · **Hit@3 0.96** · MRR 0.87 |
-| Noise (results from a different document than the answer) | 25% | 22% |
+| All 28 questions | Hit@1 0.79 · Hit@3 0.82 · MRR 0.80 | Hit@1 0.82 · **Hit@3 0.96** · MRR 0.88 |
+| Noise (results from a different document than the answer) | 25% | 25% |
 | Broken files | **7/7** handled | **7/7** handled |
 
-**Calibrating the hybrid filter for the neural model.** A result that only the vector search found is either a genuine paraphrase match or noise; the filter decides which to keep. Measured on the held-out set (Windows laptop, multilingual MiniLM):
+**Calibrating the hybrid filter for the neural model.** A result that only the vector search found is either a genuine paraphrase match or noise; the filter decides which to keep. Measured on the held-out set (Windows laptop, multilingual MiniLM, before stemming and the harakat fix):
 
 | Rule for vector-only hits | Paraphrase Hit@3 | All Hit@3 | Noise |
 |---|---|---|---|
@@ -158,7 +158,7 @@ python -m benchmarks.heldout.run_heldout     # writes benchmarks/heldout/results
 
 The default trades one paraphrase (of seven) for twelve points less noise; set `PYXON_VECTOR_KEEP_RANK=0 PYXON_VECTOR_MIN_SIM=0` to favour recall (e.g. when an LLM reads the results anyway) or `PYXON_VECTOR_MIN_SIM=0.5` to favour precision. The small multilingual model scores Arabic passages low (right answers sometimes below 0.25), which is why a pure cosine threshold does not work well and the hybrid design keeps BM25 for exact Arabic terms.
 
-Broken files get a clear `DocumentLoadError` or `EmptyDocumentError` ("scanned PDF, needs OCR"), and nothing is half-indexed. The hashing column includes light stemming (before it: paraphrase Hit@3 0.29, all Hit@3 0.79, noise 28%). The neural column was measured on a Windows laptop with `paraphrase-multilingual-MiniLM-L12-v2` (quantized ONNX, 235 MB download) before stemming was added; the embedder comparison below re-measures it.
+Broken files get a clear `DocumentLoadError` or `EmptyDocumentError` ("scanned PDF, needs OCR"), and nothing is half-indexed. The hashing column includes light stemming (before it: paraphrase Hit@3 0.29, all Hit@3 0.79, noise 28%). The neural column is from the current code (stemming and harakat-free model input), measured on a Windows laptop with `paraphrase-multilingual-MiniLM-L12-v2` (quantized ONNX, 235 MB download). Before those two changes it was Hit@1 0.79 · MRR 0.87 · noise 22%.
 
 Caveat: these documents helped find bugs that are now fixed, so they are no longer a fully untouched test set, and 7 paraphrases plus 1 cross-language question are too few to prove broad generalisation. A frozen, larger set with distractors and unanswerable questions is the next step.
 
