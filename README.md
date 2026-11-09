@@ -66,7 +66,7 @@ Without the optional tools the app still runs: `.doc` and scanned-PDF uploads ge
 ```bash
 pip install -r requirements-dev.txt -c constraints.txt   # Python 3.11+; constraints = the tested versions
 python app.py                            # demo on http://localhost:7860 (sample docs auto-load)
-pytest                                   # 128 tests (unit, API, OCR, held-out documents, broken files, review regressions)
+pytest                                   # 130 tests (unit, API, OCR, held-out documents, broken files, review regressions)
 python -m benchmarks.run_benchmark       # writes benchmarks/results/results.{md,json}
 ```
 
@@ -102,7 +102,7 @@ Configuration (environment variables):
 | `PYXON_DATA_DIR` | `./data` | Where the demo keeps SQLite and Chroma |
 | `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` | none | Turns on LLM answers. `PYXON_LLM_MODEL` and `OPENAI_BASE_URL` are optional. (The API clients are implemented but were not exercised end to end with a real key for this submission.) |
 | `PYXON_ARABIC_STEM` | `light` | `light` (stems + af'al plurals in the weighted column), `isri` (also NLTK ISRI roots; measured, no gain), or empty to disable |
-| `PYXON_OCR`, `PYXON_OCR_LANG`, `PYXON_OCR_DPI`, `TESSERACT_CMD` | `1`, `ara+eng`, `200`, auto | Turn OCR off, change its languages, or point to `tesseract.exe` on Windows (default `C:\Program Files\Tesseract-OCR\tesseract.exe`) |
+| `PYXON_OCR`, `PYXON_OCR_LANG`, `PYXON_OCR_DPI`, `PYXON_OCR_MAX_PAGES`, `TESSERACT_CMD` | `1`, `ara+eng`, `200`, `20`, auto | Turn OCR off, change its languages, or point to `tesseract.exe` on Windows (default `C:\Program Files\Tesseract-OCR\tesseract.exe`) |
 | `PYXON_API_KEY` | none | When set, API upload and delete require the header `X-API-Key` |
 | `PYXON_LLM_SUMMARIES` | `0` | `1` makes the RAPTOR tree use the LLM for cluster summaries (needs a key) |
 
@@ -243,7 +243,7 @@ pyxon_parser/
 app.py           Gradio demo + REST API on one port
 benchmarks/      queries.json, run_benchmark.py, results/, heldout/ (unseen-document evaluation)
 samples/         sample corpus (EN/AR, vocalized Arabic, forms) + build script
-tests/           pytest suite (128 tests)
+tests/           pytest suite (130 tests)
 docs/            demo.gif and the script that records it
 .github/         CI: tests on Python 3.11/3.12, held-out evaluation, Docker build
 ```

@@ -25,6 +25,7 @@ from dataclasses import asdict
 from pathlib import Path
 from typing import Literal
 
+from fastapi.concurrency import run_in_threadpool
 from fastapi import APIRouter, Depends, FastAPI, File, Form, Header, HTTPException, UploadFile
 from pydantic import BaseModel, Field
 
@@ -102,7 +103,9 @@ def build_router(parser: PyxonParser) -> APIRouter:
             path = Path(tmp) / name
             path.write_bytes(data)
             try:
-                r = parser.ingest(path, strategy=strategy)
+                # parsing (PDF extraction, OCR, embeddings) is CPU-bound: run it on a worker thread so
+                # one large upload cannot freeze the event loop and every other request with it
+                r = await run_in_threadpool(parser.ingest, path, strategy=strategy)
             except (UnsupportedFileType, EmptyDocumentError, DocumentLoadError) as exc:
                 raise HTTPException(422, str(exc)) from exc
         a = r.analysis

@@ -420,3 +420,34 @@ def test_already_indexed_file_is_skipped_before_parsing(monkeypatch):
     monkeypatch.setattr(pl, "load_document", lambda *a, **k: (_ for _ in ()).throw(AssertionError("parsed again")))
     again = p.ingest(samples / "water_ar.pdf", replace=False)
     assert again.duplicate and again.document_id == first.document_id
+
+
+def test_ocr_page_limit(monkeypatch):
+    """A long scan cannot occupy the server: pages beyond PYXON_OCR_MAX_PAGES are not OCR'd."""
+    import pymupdf
+
+    import pyxon_parser.loaders as L
+
+    calls = []
+    monkeypatch.setattr(L, "_needs_ocr", lambda blocks, page: True)
+    monkeypatch.setattr(L, "ocr_page", lambda page, dpi=None: calls.append(1) or "نص من صفحة ممسوحة ضوئيا للاختبار")
+    monkeypatch.setattr(L, "OCR_MAX_PAGES", 2)
+    doc = pymupdf.open()
+    for _ in range(4):
+        doc.new_page()
+    path = Path(__file__).resolve().parent / "_tmp_scan.pdf"
+    doc.save(path)
+    try:
+        parsed = L.load_document(path)
+        assert len(calls) == 2 and parsed.meta["ocr_pages_skipped"] == 2
+    finally:
+        path.unlink()
+
+
+def test_upload_runs_off_the_event_loop():
+    """Uploads are parsed on a worker thread (a slow scan must not block other requests)."""
+    import inspect
+
+    from pyxon_parser import api
+
+    assert "run_in_threadpool(parser.ingest" in inspect.getsource(api.build_router)

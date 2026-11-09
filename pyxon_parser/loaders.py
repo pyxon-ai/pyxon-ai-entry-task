@@ -23,6 +23,7 @@ import logging
 from .arabic import fix_presentation_forms, strip_diacritics
 
 logging.getLogger("pypdf").setLevel(logging.ERROR)  # e.g. "EOF marker not found" on damaged files
+log = logging.getLogger(__name__)
 
 SUPPORTED_EXTENSIONS = {".pdf", ".docx", ".doc", ".txt", ".md"}
 
@@ -266,6 +267,7 @@ def load_pdf(path: Path, data: bytes) -> ParsedDocument:
         if sizes:
             body_size = float(sizes.most_common(1)[0][0])
 
+    ocr_done = ocr_skipped = 0
     for i, page in enumerate(reader.pages, start=1):
         # U+0000 shows up where some PDF fonts have no ToUnicode entry (e.g. shadda ligatures)
         pypdf_text = fix_presentation_forms(page.extract_text() or "").replace("\x00", "")
@@ -279,6 +281,12 @@ def load_pdf(path: Path, data: bytes) -> ParsedDocument:
         if len(candidates) > 1 and candidates[1][2] + 0.05 < score:
             name, page_blocks, score = candidates[1]
         if mu_doc is not None and _needs_ocr(page_blocks, mu_doc[i - 1]):
+            if OCR_MAX_PAGES and ocr_done >= OCR_MAX_PAGES:
+                ocr_skipped += 1
+                blocks.extend(page_blocks)
+                extractor_used.append(name)
+                continue
+            ocr_done += 1
             ocr_text = ocr_page(mu_doc[i - 1])
             if ocr_text:
                 name, page_blocks = "ocr", _lines_to_blocks(ocr_text.splitlines(), i)
@@ -289,6 +297,9 @@ def load_pdf(path: Path, data: bytes) -> ParsedDocument:
     if reader.metadata:
         meta = {k.strip("/"): str(v) for k, v in reader.metadata.items() if v}
     meta["extractor_per_page"] = extractor_used
+    if ocr_skipped:
+        meta["ocr_pages_skipped"] = ocr_skipped  # over PYXON_OCR_MAX_PAGES
+        log.warning("%s: OCR limit reached, %d scanned page(s) not read", path.name, ocr_skipped)
     return ParsedDocument(
         filename=path.name,
         file_type="pdf",
@@ -303,6 +314,9 @@ def load_pdf(path: Path, data: bytes) -> ParsedDocument:
 OCR_LANG = os.getenv("PYXON_OCR_LANG", "ara+eng")
 # 200 dpi reads the sample scan as well as 300 dpi (99.9% characters) in about half the time
 OCR_DPI = int(os.getenv("PYXON_OCR_DPI", "200"))
+# at most this many scanned pages are OCR'd per document (0 = no limit); on a small instance each
+# page costs seconds, so one long scan would otherwise occupy the server for minutes
+OCR_MAX_PAGES = int(os.getenv("PYXON_OCR_MAX_PAGES", "20"))
 
 
 @lru_cache(maxsize=1)
