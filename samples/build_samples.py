@@ -100,12 +100,18 @@ def scanned_pdf(src: Path, dst: Path) -> None:
                          'line-height:1.9;padding:30px;background:white">' + body + "</body></html>")
         png = page.screenshot(full_page=True)
         browser.close()
+    import io
+
+    from PIL import Image
+
+    # grayscale JPEG, like a real scanner: keeps the sample small (~150 KB instead of 7 MB)
+    img = Image.open(io.BytesIO(png)).convert("L")
+    buf = io.BytesIO()
+    img.save(buf, format="JPEG", quality=70)
     doc = pymupdf.open()
-    img = pymupdf.open(stream=png, filetype="png")
-    rect = img[0].rect
-    pdf_page = doc.new_page(width=rect.width / 2, height=rect.height / 2)
-    pdf_page.insert_image(pdf_page.rect, stream=png)
-    doc.save(dst)
+    pdf_page = doc.new_page(width=img.width / 2, height=img.height / 2)
+    pdf_page.insert_image(pdf_page.rect, stream=buf.getvalue())
+    doc.save(dst, garbage=4, deflate=True)
 
 
 def main() -> None:
