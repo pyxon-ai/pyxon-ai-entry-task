@@ -342,6 +342,9 @@ def ocr_page(mu_page, dpi: int | None = None) -> str:
     import pytesseract
     from PIL import Image
 
+    # one Tesseract thread: on small cloud instances (a fraction of a CPU) its default OpenMP threads
+    # compete for the quota and a page can take a minute instead of a second
+    os.environ.setdefault("OMP_THREAD_LIMIT", "1")
     pix = mu_page.get_pixmap(dpi=dpi or OCR_DPI)
     img = Image.open(io.BytesIO(pix.tobytes("png")))
     text = pytesseract.image_to_string(img, lang=OCR_LANG, config="--psm 6")

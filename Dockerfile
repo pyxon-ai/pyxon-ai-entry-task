@@ -5,6 +5,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends libreoffice-wri
        tesseract-ocr tesseract-ocr-ara tesseract-ocr-eng \
     && rm -rf /var/lib/apt/lists/*
 
+# single-threaded Tesseract: the free instance has a fraction of one CPU
+ENV OMP_THREAD_LIMIT=1
+
 WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
